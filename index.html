@@ -1,420 +1,430 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>雄安</title>
     <link rel="stylesheet" href="css/wodry.css">
     <link rel="stylesheet" href="css/index.css">
     <link rel="stylesheet" href="css/public.css">
 
     <script src="https://www.jq22.com/jquery/jquery-1.10.2.js"></script>
+
     <script>
+        // 保留原有滚动初始化
         $(function () {
             $('.myscroll').myScroll({
-                speed: 60, //数值越大，速度越慢
-                rowHeight: 38 //li的高度
+                speed: 60, // 数值越大，速度越慢
+                rowHeight: 38 // li 的高度
             });
         });
 
+        // 自适应根字号（保留）
         $(document).ready(function () {
-            var whei = $(window).width()
+            var whei = $(window).width();
             $("html").css({ fontSize: whei / 22 });
             $(window).resize(function () {
                 var whei = $(window).width();
-                $("html").css({ fontSize: whei / 22 })
+                $("html").css({ fontSize: whei / 22 });
             });
         });
     </script>
-<style type="text/css">
-#div2027 {
-display:none;
-}
-#div2035 {
-display:none;
-}
-#diva2027 {
-display:none;
-}
-#diva2035 {
-display:none;
-}
-</style>
 
+    <style>
+        /* 兼容原有隐藏控制 */
+        #div2027, #div2035, #diva2027, #diva2035 { display: none; }
+
+        /* ===== 全局周期选择器（右上角） ===== */
+        .header { position: relative; }
+        .period-select {
+            position: absolute;
+            top: 0.20rem;       /* 相对根字号，和现有标题保持距离 */
+            right: 0.38rem;
+            z-index: 1000;
+            --arrow-size: 0.14rem;
+        }
+        .period-select select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            font-size: 0.2rem;
+            line-height: 1;
+            padding: 0.25rem 0.60rem 0.20rem 0.20rem;
+            color: #fff;
+            background: rgba(0,72,115,0.28);  /* 与页面蓝色系一致的半透明底色 */
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 0.20rem;
+            outline: none;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+        }
+        .period-select select:focus {
+            border-color: rgba(255,255,255,0.55);
+            box-shadow: 0 0 0.35rem rgba(255,255,255,0.25);
+        }
+        /* 自定义下拉箭头（纯 CSS） */
+        .period-select {
+            --arrow-size: 0.13rem;
+        }
+        .period-select::after {
+            content: "";
+            position: absolute;
+            right: 0.3rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: var(--arrow-size) solid transparent;
+            border-right: var(--arrow-size) solid transparent;
+            border-top: calc(var(--arrow-size) * 1.4) solid rgba(255,255,255,0.9);
+            pointer-events: none;
+        }
+
+        /* ===== 占位容器的统一样式（用于中期/长期的示意内容） ===== */
+        .placeholder-card {
+            width: 100%;
+            height: 100%;
+            border: 1px dashed rgba(255,255,255,0.35);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.8);
+            letter-spacing: 0.02rem;
+        }
+
+        /* 右上排名表头（保留原样式基础上细化对齐） */
+        .echart.wenzi .gun span { flex: 1; text-align: center; }
+
+        /* 让中列上方容器内容填满 */
+        .cen-top .allnav,
+        .cen-top iframe { width: 100%; height: 100%; }
+
+        /* 统一隐藏：通过 JS 切换显示 */
+        .hidden { display: none !important; }
+        .visible { display: block !important; }
+    </style>
 </head>
+
 <body>
- <script type="text/javascript">
-    function changediv(value)
-    {
-    document.getElementById('ifr').src = 'html\\'+value+'.html';
-    if (value=='flow2022'||value=='vc2022'||value=='spd2022' ){
-    document.getElementById('div2022').style.display = 'block' ;
-    document.getElementById('div2027').style.display = 'none' ;
-    document.getElementById('div2035').style.display = 'none' ;
-    document.getElementById('diva2022').style.display = 'block' ;
-    document.getElementById('diva2027').style.display = 'none' ;
-    document.getElementById('diva2035').style.display = 'none' ;
-    }else if ( value=='flow2027'||value=='vc2027'||value=='spd2027'){
-  document.getElementById('div2022').style.display = 'none' ;
-    document.getElementById('div2027').style.display = 'block' ;
-    document.getElementById('div2035').style.display = 'none' ;
-    document.getElementById('diva2022').style.display = 'none' ;
-    document.getElementById('diva2027').style.display = 'block' ;
-    document.getElementById('diva2035').style.display = 'none' ;
-    }else if ( value=='flow2035'||value=='vc2035'||value=='spd2035'){
-  document.getElementById('div2022').style.display = 'none' ;
-    document.getElementById('div2027').style.display = 'none' ;
-    document.getElementById('div2035').style.display = 'block' ;
-    document.getElementById('diva2022').style.display = 'none' ;
-    document.getElementById('diva2027').style.display = 'none' ;
-    document.getElementById('diva2035').style.display = 'block' ;
-    }               
-    }
+    <script>
+        // ====== 周期切换主控：短期/中期/长期 -> 2022/2027/2035 ======
+        function applyPeriod(key) {
+            // key: 'short' | 'mid' | 'long'
+            var map = {
+                short: { year: '2022', iframe: 'html\\flow2022.html' },
+                mid:   { year: '2027', iframe: 'html\\flow2027.html' },
+                long:  { year: '2035', iframe: 'html\\flow2035.html' }
+            };
+            var conf = map[key] || map.short;
+
+            // 1) 左列-基本信息 三组切换
+            document.getElementById('div2022').style.display = (conf.year==='2022'?'block':'none');
+            document.getElementById('div2027').style.display = (conf.year==='2027'?'block':'none');
+            document.getElementById('div2035').style.display = (conf.year==='2035'?'block':'none');
+
+            // 2) 左列-交通运行状况 三组切换
+            document.getElementById('diva2022').style.display = (conf.year==='2022'?'block':'none');
+            document.getElementById('diva2027').style.display = (conf.year==='2027'?'block':'none');
+            document.getElementById('diva2035').style.display = (conf.year==='2035'?'block':'none');
+
+            // 3) 左下图表（三个占位容器切换）
+            toggleById('chart3',           conf.year==='2022');
+            toggleById('chart3_2027',      conf.year==='2027');
+            toggleById('chart3_2035',      conf.year==='2035');
+
+            // 4) 中列-上方地图 iframe 切换
+            var ifr = document.getElementById('ifr');
+            if (ifr && conf.iframe) ifr.src = conf.iframe;
+
+            // 5) 中列-下方图表（三个占位容器切换）
+            toggleById('chart4',           conf.year==='2022');
+            toggleById('chart4_2027',      conf.year==='2027');
+            toggleById('chart4_2035',      conf.year==='2035');
+
+            // 6) 右列-上方排名（三个列表切换）
+            toggleById('rank_2022_wrap',   conf.year==='2022');
+            toggleById('rank_2027_wrap',   conf.year==='2027');
+            toggleById('rank_2035_wrap',   conf.year==='2035');
+
+            // 7) 右列-中部/底部 占位内容切换（可自行替换为不同 iframe 或图表）
+            toggleById('rightmid_2022',    conf.year==='2022');
+            toggleById('rightmid_2027',    conf.year==='2027');
+            toggleById('rightmid_2035',    conf.year==='2035');
+
+            toggleById('rightbot_2022',    conf.year==='2022');
+            toggleById('rightbot_2027',    conf.year==='2027');
+            toggleById('rightbot_2035',    conf.year==='2035');
+        }
+
+        function toggleById(id, show) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            if (show) {
+                el.classList.remove('hidden');
+                el.classList.add('visible');
+            } else {
+                el.classList.remove('visible');
+                el.classList.add('hidden');
+            }
+        }
     </script>
-<div class="main">
-    <div class="header">
-        <div class="header-left fl" id="time"></div>
-        <div class="header-center fl">
-            <div class="header-title">
-                雄安新区交通推演平台
+
+    <div class="main">
+        <div class="header">
+            <div class="header-left fl" id="time"></div>
+
+            <div class="header-center fl">
+                <div class="header-title">雄安新区交通推演平台</div>
+                <div class="header-img"></div>
             </div>
-            <div class="header-img"></div>
+
+            <!-- 全局右上角：周期下拉 -->
+            <div class="period-select">
+                <select id="periodSelect" aria-label="切换周期（短期/中期/长期）" onchange="applyPeriod(this.value)">
+                    <option value="short" selected>短期</option>
+                    <option value="mid">中期</option>
+                    <option value="long">长期</option>
+                </select>
+            </div>
+
+            <div class="header-right fl"></div>
+            <div class="header-bottom fl"></div>
         </div>
-        <div class="header-right fl"></div>
-        <div class="header-bottom fl"></div>
 
-    </div>
+        <div class="center">
+            <!-- ===== 左列 ===== -->
+            <div class="center-left fl">
+                <div class="left-top rightTop border">
+                    <div class="title">基本信息</div>
 
-    <div class="center">
-        <div class="center-left fl">
-            <div class="left-top rightTop border">
-                <!--<h1 id="ceshi">数据可视化</h1>-->
-                <div class="title">基本信息</div>
-                <div class="top-list" id='div2022'>
-                    <ul>
-                        <li>道路路段总数：1481</li>
-                        <li>道路总里程：229km</li>
-                        <li>交叉口总个数：434</li>
-                        <li>机动车OD总量：1.9万 pcu/h</li>
-                        <li>平均路段交通量：466 pcu</li>
-                        <li>平均路段车速：45.88 km/h</li>
-                    </ul>
-                </div>
-                <div class="top-list" id='div2027'>
-                    <ul>
-                        <li>道路路段总数：3843</li>
-                        <li>道路总里程：739km</li>
-                        <li>交叉口总个数：1089</li>
-                        <li>机动车OD总量：5.2万 pcu/h</li>
-                        <li>平均路段交通量：565 pcu</li>
-                        <li>平均路段车速：64.73 km/h</li>
-                    </ul>
-                </div>
-                <div class="top-list" id='div2035'>
-                    <ul>
-                        <li>道路路段总数：6087</li>
-                        <li>道路总里程：1685km</li>
-                        <li>交叉口总个数：1859</li>
-                        <li>机动车OD总量：10.8万 pcu/h</li>
-                        <li>平均路段交通量：893 pcu</li>
-                        <li>平均路段车速：49.41 km/h</li>
-                    </ul>
-                </div>
-
-            </div>
-            <div class="left-cen rightTop border" id='diva2022'>
-                <!--<div class="title">交通运行状况 (2022年)</div> -->
-                <div class="title">交通运行状况 (2022年底)</div>
-                <ul class="top-list" >
-                
-                <li class="wodryRX2">平均出行时耗  9.76分钟</li><br/>
-                <li class="wodryRX2">平均行程车速  45.88千米/小时</li><br/>
-                <li class="wodryRX2">出行拥堵延时指数  1.03</li><br/>
-                <li class="wodryRX2">道路网络干道拥堵率  0.49%</li><br/>
-                <li class="wodryRX2">路段平均饱和度  13.31%</li><br/>
-                <li class="wodryRX2">节点平均饱和度  23.96%</li><br/>
-                </ul>
-            </div>
-            
-            <div class="left-cen rightTop border" id='diva2027'>
-                <!--<div class="title">交通运行状况 (2022年)</div> -->
-                <div class="title">交通运行状况 (2027年)</div>
-                <ul class="top-list">
-                <li class="wodryRX2">平均出行时耗  13.61分钟</li><br/>
-                <li class="wodryRX2">平均行程车速  35.33千米/小时</li><br/>
-                <li class="wodryRX2">出行拥堵延时指数  1.11</li><br/>
-                <li class="wodryRX2">道路网络干道拥堵率  2.26%</li><br/>
-                <li class="wodryRX2">路段平均饱和度  23.43%</li><br/>
-                <li class="wodryRX2">节点平均饱和度  42.96%</li><br/>
-                </ul>
-            </div>
-            
-            <div class="left-cen rightTop border" id='diva2035'>
-                <!--<div class="title">交通运行状况 (2022年)</div> -->
-                <div class="title">交通运行状况 (2035年)</div>
-                <ul class="top-list">
-                <li class="wodryRX2">平均出行时耗  20.76分钟</li><br/>
-                <li class="wodryRX2">平均行程车速  47.58 千米/小时</li><br/>
-                <li class="wodryRX2">出行拥堵延时指数  1.05</li><br/>
-                <li class="wodryRX2">道路网络干道拥堵率  1.18%</li><br/>
-                <li class="wodryRX2">路段平均饱和度  7.90%</li><br/>
-                <li class="wodryRX2">节点平均饱和度  19.90%</li><br/>
-                </ul>
-            </div>
-            
-            <div class="left-bottom rightTop border">
-                <div class="title">流量情况占比</div>
-                <div class="bottom-b">
-                    <div id="chart3" class="allnav"></div>
-                </div>
-
-            </div>
-        </div>
-        <div class="center-cen fl">
-            <div class="cen-top rightTop border">
-                <!-- <div class="top-title">
-                    <ul>
-                        <li>
-                            <p>数量统计</p>
-                            <span>3</span>
-                            <span>6</span>
-                            <span>5</span>
-                            <b>个</b>
-                        </li>
-                        <li>
-                            <p>同比上升</p>
-                            <span>1</span>
-                            <span>3</span>
-                            <b>%</b>
-                        </li>
-                    </ul>
-                </div> -->
-
-                <!-- <div class="top-bottom" style="background:white"> -->
-                    <!-- <div id="map" class="allnav" style="height: 4.4rem"></div> -->
-                    <select id="select_g" style="background-color: rgba(0,72,115,0.28)" onchange= "changediv(this.value)">
-                      <option value="flow2022">2022年底交通推演-流量</option>
-                       <option value="vc2022">2022年底交通推演-负荷</option>
-                        <option value="spd2022">2022年底交通推演-速度</option>
-                     <option value="flow2027">2027年交通推演-流量</option>
-                       <option value="vc2027">2027年交通推演-负荷</option>
-                        <option value="spd2027">2027年交通推演-速度</option>
-                        <option value="flow2035">2035年交通推演-流量</option>
-                       <option value="vc2035">2035年交通推演-负荷</option>
-                        <option value="spd2035">2035年交通推演-速度</option>
-                    </select>
-                    <iframe id = "ifr" src="html\\flow2022.html" style="height: 100%" width="100%"></iframe>
-                <!-- </div> -->
-
-
-            </div>
-            <div class="cen-bottom rightTop border">
-                <div class="title">运行变化情况</div>
-                <div class="bottom-b">
-                    <div id="chart4" class="allnav" style="width: 660px; height: 220px;"></div>
-                </div>
-
-            </div>
-        </div>
-        <div class="center-right fr">
-            <div class="right-top rightTop border">
-                <div class="title">分区出行效率排行</div>
-
-                <div class="echart wenzi">
-                    <div class="gun">
-                    <span>排名</span>
-                    <span>名称</span>
-                    <span>出行指数</span>
-                </div>
-                    <div id="FontScroll" class="myscroll">
+                    <!-- 短期（2022） -->
+                    <div class="top-list" id="div2022">
                         <ul>
-                            <li>
-                                <div class="fontInner clearfix">
-                                    <span>
-                                        <b>1</b>
-                                    </span>
-                                    <span>容城</span>
-                                    <span>2.42</span>
-                                </div>
-                            </li>
-                            <li>
-                                <div class="fontInner clearfix">
-                                    <span>
-                                        <b>2</b>
-                                    </span>
-                                    <span>容东</span>
-                                    <span>2.38</span>
-                                </div>
-                            </li>
-                            <li>
-                                <div class="fontInner clearfix">
-                                    <span>
-                                        <b>3</b>
-                                    </span>
-                                    <span>容西</span>
-                                    <span>2.30</span>
-                                </div>
-                            </li>
-                            <li>
-                                <div class="fontInner clearfix">
-                                    <span>
-                                        <b>4</b>
-                                    </span>
-                                    <span>安新</span>
-                                    <span>2.22</span>
-                                </div>
-                            </li>
-                            <li>
-                                <div class="fontInner clearfix">
-                                    <span>
-                                        <b>5</b>
-                                    </span>
-                                    <span>雄县</span>
-                                    <span>2.20</span>
-                                </div>
-                            </li>
-                            <li>
-                                <div class="fontInner clearfix">
-                                    <span>
-                                        <b>6</b>
-                                    </span>
-                                    <span>昝岗</span>
-                                    <span>2.19</span>
-                                </div>
-                            </li>
-                            <li>
-                                <div class="fontInner clearfix">
-                                    <span>
-                                        <b>7</b>
-                                    </span>
-                                    <span>寨里</span>
-                                    <span>2.18</span>
-                                </div>
-                            </li>
-                            <li>
-                                <div class="fontInner clearfix">
-                                    <span>
-                                        <b>8</b>
-                                    </span>
-                                    <span>起步区</span>
-                                    <span>2.17</span>
-                                </div>
-                            </li>
+                            <li>道路路段总数：1481</li>
+                            <li>道路总里程：229km</li>
+                            <li>交叉口总个数：434</li>
+                            <li>机动车OD总量：1.9万 pcu/h</li>
+                            <li>平均路段交通量：466 pcu</li>
+                            <li>平均路段车速：45.88 km/h</li>
+                        </ul>
+                    </div>
+
+                    <!-- 中期（2027） -->
+                    <div class="top-list" id="div2027" style="display:none;">
+                        <ul>
+                            <li>道路路段总数：3843</li>
+                            <li>道路总里程：739km</li>
+                            <li>交叉口总个数：1089</li>
+                            <li>机动车OD总量：5.2万 pcu/h</li>
+                            <li>平均路段交通量：565 pcu</li>
+                            <li>平均路段车速：64.73 km/h</li>
+                        </ul>
+                    </div>
+
+                    <!-- 长期（2035） -->
+                    <div class="top-list" id="div2035" style="display:none;">
+                        <ul>
+                            <li>道路路段总数：6087</li>
+                            <li>道路总里程：1685km</li>
+                            <li>交叉口总个数：1859</li>
+                            <li>机动车OD总量：10.8万 pcu/h</li>
+                            <li>平均路段交通量：893 pcu</li>
+                            <li>平均路段车速：49.41 km/h</li>
                         </ul>
                     </div>
                 </div>
 
-            </div>
-            <div class="right-cen border">
-                <div class="title">发生量分布</div>
-                <div class="right-cen-cent">
-                    <!-- <div id="chart2" class="allnav"></div> -->
-                    <iframe src="html\三维图.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                <!-- 交通运行状况（短/中/长期三套） -->
+                <div class="left-cen rightTop border" id="diva2022">
+                    <div class="title">交通运行状况 (2022年底)</div>
+                    <ul class="top-list">
+                        <li class="wodryRX2">平均出行时耗  9.76分钟</li><br/>
+                        <li class="wodryRX2">平均行程车速  45.88千米/小时</li><br/>
+                        <li class="wodryRX2">出行拥堵延时指数  1.03</li><br/>
+                        <li class="wodryRX2">道路网络干道拥堵率  0.49%</li><br/>
+                        <li class="wodryRX2">路段平均饱和度  13.31%</li><br/>
+                        <li class="wodryRX2">节点平均饱和度  23.96%</li><br/>
+                    </ul>
                 </div>
 
-            </div>
-            <div class="right-bottom rightTop border">
-                <div class="title">公交车运行统计</div>
-                <div class="chat">
-                    <iframe src="html\bus.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
-                    <!-- <div id="chart5" class="allnav"></div> -->
+                <div class="left-cen rightTop border" id="diva2027" style="display:none;">
+                    <div class="title">交通运行状况 (2027年)</div>
+                    <ul class="top-list">
+                        <li class="wodryRX2">平均出行时耗  13.61分钟</li><br/>
+                        <li class="wodryRX2">平均行程车速  35.33千米/小时</li><br/>
+                        <li class="wodryRX2">出行拥堵延时指数  1.11</li><br/>
+                        <li class="wodryRX2">道路网络干道拥堵率  2.26%</li><br/>
+                        <li class="wodryRX2">路段平均饱和度  23.43%</li><br/>
+                        <li class="wodryRX2">节点平均饱和度  42.96%</li><br/>
+                    </ul>
                 </div>
 
+                <div class="left-cen rightTop border" id="diva2035" style="display:none;">
+                    <div class="title">交通运行状况 (2035年)</div>
+                    <ul class="top-list">
+                        <li class="wodryRX2">平均出行时耗  20.76分钟</li><br/>
+                        <li class="wodryRX2">平均行程车速  47.58 千米/小时</li><br/>
+                        <li class="wodryRX2">出行拥堵延时指数  1.05</li><br/>
+                        <li class="wodryRX2">道路网络干道拥堵率  1.18%</li><br/>
+                        <li class="wodryRX2">路段平均饱和度  7.90%</li><br/>
+                        <li class="wodryRX2">节点平均饱和度  19.90%</li><br/>
+                    </ul>
+                </div>
+
+                <div class="left-bottom rightTop border">
+                    <div class="title">流量情况占比</div>
+                    <div class="bottom-b" style="height: 220px;">
+                        <!-- 短期默认图表容器（与原ID一致，便于兼容你现有的 echarts.js） -->
+                        <div id="chart3" class="allnav visible" style="width:100%; height:100%;"></div>
+
+                        <!-- 中期/长期占位容器（可替换为具体图表） -->
+                        <div id="chart3_2027" class="allnav hidden" style="width:100%; height:100%;">
+                            <div class="placeholder-card">中期（2027）流量占比图表占位</div>
+                        </div>
+                        <div id="chart3_2035" class="allnav hidden" style="width:100%; height:100%;">
+                            <div class="placeholder-card">长期（2035）流量占比图表占位</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
 
+            <!-- ===== 中列 ===== -->
+            <div class="center-cen fl">
+                <div class="cen-top rightTop border">
+                    <!-- 已移除原“中列第一图”里的下拉框；iframe 随周期切换 -->
+                    <iframe id="ifr" src="html\\flow2022.html" frameborder="0"></iframe>
+                </div>
 
-</div>
+                <div class="cen-bottom rightTop border">
+                    <div class="title">运行变化情况</div>
+                    <div class="bottom-b" style="width: 660px; height: 220px;">
+                        <!-- 短期默认图表容器（与原ID一致） -->
+                        <div id="chart4" class="allnav visible" style="width:100%; height:100%;"></div>
 
-<!-- <script type="text/javascript">
-        document.getElementById("select_g").onchange =function(){
-            console.log(this.options[this.selectedIndex].innerHTML);
-            alert(“111)
+                        <!-- 中期/长期占位容器 -->
+                        <div id="chart4_2027" class="allnav hidden" style="width:100%; height:100%;">
+                            <div class="placeholder-card">中期（2027）运行变化图表占位</div>
+                        </div>
+                        <div id="chart4_2035" class="allnav hidden" style="width:100%; height:100%;">
+                            <div class="placeholder-card">长期（2035）运行变化图表占位</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 右列 ===== -->
+            <div class="center-right fr">
+                <div class="right-top rightTop border">
+                    <div class="title">分区出行效率排行</div>
+
+                    <!-- 短期（2022）排行：保留原结构与滚动 -->
+                    <div id="rank_2022_wrap" class="echart wenzi visible">
+                        <div class="gun">
+                            <span>排名</span>
+                            <span>名称</span>
+                            <span>出行指数</span>
+                        </div>
+                        <div id="FontScroll" class="myscroll">
+                            <ul>
+                                <li><div class="fontInner clearfix"><span><b>1</b></span><span>容城</span><span>2.42</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>2</b></span><span>容东</span><span>2.38</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>3</b></span><span>容西</span><span>2.30</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>4</b></span><span>安新</span><span>2.22</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>5</b></span><span>雄县</span><span>2.20</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>6</b></span><span>昝岗</span><span>2.19</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>7</b></span><span>寨里</span><span>2.18</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>8</b></span><span>起步区</span><span>2.17</span></div></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 中期（2027）排行占位 -->
+                    <div id="rank_2027_wrap" class="echart wenzi hidden">
+                        <div class="gun">
+                            <span>排名</span><span>名称</span><span>出行指数</span>
+                        </div>
+                        <div class="placeholder-card" style="height: 220px;">中期（2027）分区排行占位</div>
+                    </div>
+
+                    <!-- 长期（2035）排行占位 -->
+                    <div id="rank_2035_wrap" class="echart wenzi hidden">
+                        <div class="gun">
+                            <span>排名</span><span>名称</span><span>出行指数</span>
+                        </div>
+                        <div class="placeholder-card" style="height: 220px;">长期（2035）分区排行占位</div>
+                    </div>
+                </div>
+
+                <div class="right-cen border">
+                    <div class="title">发生量分布</div>
+                    <div class="right-cen-cent" style="height: 260px;">
+                        <!-- 右中：短期用原三维图 iframe；中/长期为占位容器（可替换为不同 src） -->
+                        <div id="rightmid_2022" class="visible" style="width:100%; height:100%;">
+                            <iframe src="html\\三维图.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        </div>
+                        <div id="rightmid_2027" class="hidden" style="width:100%; height:100%;">
+                            <div class="placeholder-card">中期（2027）三维/热力图占位</div>
+                        </div>
+                        <div id="rightmid_2035" class="hidden" style="width:100%; height:100%;">
+                            <div class="placeholder-card">长期（2035）三维/热力图占位</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-bottom rightTop border">
+                    <div class="title">公交车运行统计</div>
+                    <div class="chat" style="height: 220px;">
+                        <!-- 右下：短期沿用原 iframe；中/长期为占位容器（可替换为不同 src） -->
+                        <div id="rightbot_2022" class="visible" style="width:100%; height:100%;">
+                            <iframe src="html\\bus.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        </div>
+                        <div id="rightbot_2027" class="hidden" style="width:100%; height:100%;">
+                            <div class="placeholder-card">中期（2027）公交运行统计占位</div>
+                        </div>
+                        <div id="rightbot_2035" class="hidden" style="width:100%; height:100%;">
+                            <div class="placeholder-card">长期（2035）公交运行统计占位</div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /右列 -->
+        </div><!-- /center -->
+    </div><!-- /main -->
+
+    <!-- 原有脚本依赖（保留） -->
+    <script src="js/jquery.min.js"></script>
+    <script src="https://www.jq22.com/jquery/echarts-4.2.1.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts-gl/dist/echarts-gl.min.js"></script>
+    <script src="js/wodry.min.js"></script>
+    <script src="js/fontscroll.js"></script>
+    <script src="js/echarts.js"></script>
+    <script src="js/china.js"></script>
+
+    <script>
+        // 顶部时间（保留）
+        function getTime(){
+            var myDate = new Date();
+            var myYear = myDate.getFullYear();
+            var myMonth = myDate.getMonth()+1;
+            var myToday = myDate.getDate();
+            var myDay = myDate.getDay();
+            var myHour = myDate.getHours();
+            var myMinute = myDate.getMinutes();
+            var mySecond = myDate.getSeconds();
+            var week = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+            var nowTime = myYear+'-'+fillZero(myMonth)+'-'+fillZero(myToday)+'&nbsp;&nbsp;'
+                        +fillZero(myHour)+':'+fillZero(myMinute)+':'+fillZero(mySecond)
+                        +'&nbsp;&nbsp;'+week[myDay]+'&nbsp;&nbsp;';
+            $('#time').html(nowTime);
         }
-</script>
- -->
-<script src="js/jquery.min.js"></script>
-<script src="https://www.jq22.com/jquery/echarts-4.2.1.min.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts-gl/dist/echarts-gl.min.js"></script>
-<script src="js/wodry.min.js"></script>
-<script src="js/fontscroll.js"></script>
-<script src="js/echarts.js"></script>
-<script src="js/china.js"></script>
-<!--<script src="js/mymap.js"></script>-->
-<script>
-    /*$('#ceshi').wodry({
+        function fillZero(str){ return (str<10)?('0'+str):str; }
+        setInterval(getTime,1000);
 
-        animation: 'rotateX',
-
-        delay: 1000,
-
-        animationDuration: 800
-
-    });*/
-    /*window.onload = function () {
-        setInterval(function () {
-            var hs=document.getElementById("ceshi");
-            var hstyle=hs.style.transform;
-            if(hstyle=='rotateX(-360deg)'){
-                //console.log(1)
-                hs.style.transform='rotateX(0deg)';
-                hs.style.transform='transform 500ms cubic-bezier(0.55, 0.18, 0.92, 0.46) 0s;'
-            }else {
-                hs.style.transform='rotateX(-360deg)';
-                hs.style.transition="all 2s";
-            }
-        }, 5000);
-    };*/
-    var counter = 3000;
-    var ulist=document.getElementById("ceshi").getElementsByTagName("li");
-    for (var i=0;i<ulist.length;i++){
-        //console.log(ulist[i].className);
-        var liclass=ulist[i].className;
-        var a= $('.'+liclass+'').wodry({
-            animation: 'rotateX',
-            delay: counter,
-            animationDuration: 1000
+        // 页面加载完成后，将周期初始化为“短期”
+        window.addEventListener('DOMContentLoaded', function(){
+            applyPeriod('short');
         });
-        if(counter>3050){
-            counter=3000;
-        }else {
-            counter +=10;
-        }
-        //console.log(counter);
-
-    }
-
-    //顶部时间
-    function getTime(){
-        var myDate = new Date();
-        var myYear = myDate.getFullYear(); //获取完整的年份(4位,1970-????)
-        var myMonth = myDate.getMonth()+1; //获取当前月份(0-11,0代表1月)
-        var myToday = myDate.getDate(); //获取当前日(1-31)
-        var myDay = myDate.getDay(); //获取当前星期X(0-6,0代表星期天)
-        var myHour = myDate.getHours(); //获取当前小时数(0-23)
-        var myMinute = myDate.getMinutes(); //获取当前分钟数(0-59)
-        var mySecond = myDate.getSeconds(); //获取当前秒数(0-59)
-        var week = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
-        var nowTime;
-
-        nowTime = myYear+'-'+fillZero(myMonth)+'-'+fillZero(myToday)+'&nbsp;&nbsp;'+fillZero(myHour)+':'+fillZero(myMinute)+':'+fillZero(mySecond)+'&nbsp;&nbsp;'+week[myDay]+'&nbsp;&nbsp;';
-        //console.log(nowTime);
-        $('#time').html(nowTime);
-    };
-    function fillZero(str){
-        var realNum;
-        if(str<10){
-            realNum	= '0'+str;
-        }else{
-            realNum	= str;
-        }
-        return realNum;
-    }
-    setInterval(getTime,1000);
-
-</script>
-
-
+    </script>
 </body>
 </html>
