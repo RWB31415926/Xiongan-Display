@@ -61,6 +61,11 @@
         .period-select {
             --arrow-size: 0.13rem;
         }
+        /* 取消原有点击发光，避免叠加冲突 */
+        .period-select select:focus,
+        .period-select select:active{
+          box-shadow:none; outline:none;
+        }
         .period-select::after {
             content: "";
             position: absolute;
