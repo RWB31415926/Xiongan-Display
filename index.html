@@ -1,411 +1,419 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>雄安新区交通推演平台</title>
+    <meta charset="UTF-8">
+    <title>雄安</title>
+    <link rel="stylesheet" href="css/wodry.css">
+    <link rel="stylesheet" href="css/index.css">
+    <link rel="stylesheet" href="css/public.css">
 
-<!-- ============ 统一主题：一个地方改全站色 ============ -->
-<style>
-    :root{
-      --bg:        #0b1d2c;  /* 页面背景 */
-      --panel:     #0e2538;  /* 面板背景 */
-      --text:      #e7f6ff;  /* 主文字 */
-      --muted:     #7bdcff;  /* 次级文字 */
-      --accent1:   #f9d65c;  /* 图表配色 1 */
-      --accent2:   #33d2c2;  /* 图表配色 2 */
-      --accent3:   #20c997;  /* 图表配色 3 */
-      --accent4:   #6f42c1;  /* 图表配色 4 */
-      --accent5:   #d63384;  /* 图表配色 5 */
-      --radius:    12px;
-    }
-    html,body{height:100%; margin:0; background:var(--bg); color:var(--text);
-      font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",
-                   Arial,"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;}
-    .main{display:grid; grid-template-columns: 0.8fr 1.4fr 0.8fr; gap:12px; padding:10px; min-height:100vh; box-sizing:border-box;}
-    .panel{background:var(--panel); border-radius:var(--radius); box-shadow:0 10px 24px rgba(0,0,0,.25); overflow:hidden;}
-    .title{padding:10px 12px; color:var(--muted); font-size:14px; border-bottom:1px solid rgba(255,255,255,.06);}
-    .content{padding:12px;}
+    <script src="https://www.jq22.com/jquery/jquery-1.10.2.js"></script>
+    <script>
+        $(function () {
+            $('.myscroll').myScroll({
+                speed: 60, //数值越大，速度越慢
+                rowHeight: 38 //li的高度
+            });
+        });
 
-    .left-col{display:grid; grid-template-rows: auto auto 360px; gap:12px;}
-    .mid-col{display:grid; grid-template-rows: auto 360px; gap:12px;}
-    .right-col{display:grid; grid-template-rows: auto auto 360px; gap:12px;}
-
-    /* 图片挂载容器（用于 JSON/HTML 插图） */
-    .img-slot{position:relative; display:flex; align-items:center; justify-content:center; width:100%; height:100%;}
-    .img-slot img{max-width:100%; max-height:100%; object-fit:contain;}
-    /* iframe 若后续需要，可在同页或外链，这里用图片替代，避免外部依赖带来的色差 */
-  </style>
-<!-- 仅保留 ECharts 5（统一版本，避免冲突） -->
-<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-    <!-- Plotly（用于渲染 JSON 图表） -->
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-
-<!-- ============ JSON 数据都内嵌到页面中（单文件） ============ -->
-<!-- 1) 饼图数据：直接改 labels / counts 即可 -->
-
-<!-- 2) 图片批量插入：containerId 定位到某个容器；absolute 可选像素级控制 -->
-<script id="images-json" type="application/json">
-  [
-    {
-      "containerId": "imgSlotA",
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc5MDAnIGhlaWdodD0nNDIwJz4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0nZycgeDE9JzAnIHkxPScwJyB4Mj0nMScgeTI9JzEnPgogICAgICA8c3RvcCBvZmZzZXQ9JzAlJyBzdG9wLWNvbG9yPScjMjAzNDQ3Jy8+CiAgICAgIDxzdG9wIG9mZnNldD0nMTAwJScgc3RvcC1jb2xvcj0nIzE1MjYzNScvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9JzEwMCUnIGhlaWdodD0nMTAwJScgZmlsbD0ndXJsKCNnKScvPgogIDxnIGZpbGw9J3doaXRlJyBmb250LWZhbWlseT0nQXJpYWwsSGVsdmV0aWNhLHNhbnMtc2VyaWYnPgogICAgPHRleHQgeD0nNTAlJyB5PSc1MCUnIGZvbnQtc2l6ZT0nMzAnIHRleHQtYW5jaG9yPSdtaWRkbGUnIGRvbWluYW50LWJhc2VsaW5lPSdtaWRkbGUnPuWIhuWMuuWHuuihjOaViOeOh+aOkuihjO+8iOWNoOS9jeWbvu+8iTwvdGV4dD4KICA8L2c+Cjwvc3ZnPg==",
-      "alt": "分区出行效率排行",
-      "absolute": null
-    },
-    {
-      "containerId": "imgSlotB",
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc5MDAnIGhlaWdodD0nNDIwJz4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0nZycgeDE9JzAnIHkxPScwJyB4Mj0nMScgeTI9JzEnPgogICAgICA8c3RvcCBvZmZzZXQ9JzAlJyBzdG9wLWNvbG9yPScjMjAzNDQ3Jy8+CiAgICAgIDxzdG9wIG9mZnNldD0nMTAwJScgc3RvcC1jb2xvcj0nIzE1MjYzNScvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9JzEwMCUnIGhlaWdodD0nMTAwJScgZmlsbD0ndXJsKCNnKScvPgogIDxnIGZpbGw9J3doaXRlJyBmb250LWZhbWlseT0nQXJpYWwsSGVsdmV0aWNhLHNhbnMtc2VyaWYnPgogICAgPHRleHQgeD0nNTAlJyB5PSc1MCUnIGZvbnQtc2l6ZT0nMzAnIHRleHQtYW5jaG9yPSdtaWRkbGUnIGRvbWluYW50LWJhc2VsaW5lPSdtaWRkbGUnPuWPkeeUn+mHj+WIhuW4g++8iOWNoOS9jeWbvu+8iTwvdGV4dD4KICA8L2c+Cjwvc3ZnPg==",
-      "alt": "发生量分布",
-      "absolute": {"top":"8px","left":"10px","width":"92%","height":"auto"}
-    },
-    {
-      "containerId": "imgSlotC",
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc5MDAnIGhlaWdodD0nNDIwJz4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0nZycgeDE9JzAnIHkxPScwJyB4Mj0nMScgeTI9JzEnPgogICAgICA8c3RvcCBvZmZzZXQ9JzAlJyBzdG9wLWNvbG9yPScjMjAzNDQ3Jy8+CiAgICAgIDxzdG9wIG9mZnNldD0nMTAwJScgc3RvcC1jb2xvcj0nIzE1MjYzNScvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9JzEwMCUnIGhlaWdodD0nMTAwJScgZmlsbD0ndXJsKCNnKScvPgogIDxnIGZpbGw9J3doaXRlJyBmb250LWZhbWlseT0nQXJpYWwsSGVsdmV0aWNhLHNhbnMtc2VyaWYnPgogICAgPHRleHQgeD0nNTAlJyB5PSc1MCUnIGZvbnQtc2l6ZT0nMzAnIHRleHQtYW5jaG9yPSdtaWRkbGUnIGRvbWluYW50LWJhc2VsaW5lPSdtaWRkbGUnPua1gemHjy3pgJ/luqbnu5/orqHvvIjljaDkvY3lm77vvIk8L3RleHQ+CiAgPC9nPgo8L3N2Zz4=",
-      "alt": "流量-速度统计",
-      "absolute": null
-    }
-  ]
-  </script>
-<style>
-
-.header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 60px;
-  background: var(--panel);
-  display: flex;
-  align-items: center;
-  justify-content: center; /* center the title block */
-  z-index: 1000;
+        $(document).ready(function () {
+            var whei = $(window).width()
+            $("html").css({ fontSize: whei / 22 });
+            $(window).resize(function () {
+                var whei = $(window).width();
+                $("html").css({ fontSize: whei / 22 })
+            });
+        });
+    </script>
+<style type="text/css">
+#div2027 {
+display:none;
 }
-
-/* Center title */
-.header-center {
-  pointer-events: none; /* so clicks pass through if needed */
+#div2035 {
+display:none;
 }
-.header-title {
-  font-size: 24px;
-  font-weight: bold;
-  color: var(--text);
-  text-align: center;
-}/* 场景下拉框统一深色风格 */
-#scenarioSel {
-  background-color: var(--panel);   /* 用和面板一致的深色 */
-  color: var(--text);               /* 文字颜色与主题文字一致 */
-  font-weight: bold;                /* 加粗文字 */
-  border: 1px solid rgba(255,255,255,0.3); /* 半透明边框 */
-  border-radius: 4px;               /* 圆角 */
-  padding: 4px 8px;                 /* 内边距 */
-  outline: none;                    /* 选中时不显示默认边框 */
+#diva2027 {
+display:none;
 }
-
-/* 下拉选项保持深色风格 */
-#scenarioSel option {
-  background-color: var(--panel);
-  color: var(--text);
-  font-weight: bold;
-}
-
-
-/* Left & Right utility areas (time / buttons) */
-.header-left, .header-right {
-  position: absolute;
-  top: 0;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  color: var(--text);
-  font-size: 14px;
-}
-.header-left { left: 12px; }
-.header-right { right: 12px; }
-
-/* Push content below the fixed header */
-.main {
-  padding-top: 70px;
+#diva2035 {
+display:none;
 }
 </style>
 
-
 </head>
 <body>
-<!--  标题 -->
-  <div class="header">
-    <div class="header-left fl" id="time"></div>
-    <div class="header-center fl">
-      <div class="header-title">
-        雄安新区交通推演平台
-      </div>
-      <div class="header-img"></div>
-    </div>
-    <div class="header-right fl">
-        <label style="display:inline-flex;gap:6px;align-items:center;color:var(--text);">
-            <span>场景：</span>
-            <select id="scenarioSel">
-                <option value="short">短期</option>
-                <option value="mid">中期</option>
-                <option value="long">远期</option>
-            </select>
-        </label>
-    </div>
-    <div class="header-bottom fl"></div>
-  </div>
-  <!-- 下面是主体内容 -->
+ <script type="text/javascript">
+    function changediv(value)
+    {
+    document.getElementById('ifr').src = 'html\\'+value+'.html';
+    if (value=='flow2022'||value=='vc2022'||value=='spd2022' ){
+    document.getElementById('div2022').style.display = 'block' ;
+    document.getElementById('div2027').style.display = 'none' ;
+    document.getElementById('div2035').style.display = 'none' ;
+    document.getElementById('diva2022').style.display = 'block' ;
+    document.getElementById('diva2027').style.display = 'none' ;
+    document.getElementById('diva2035').style.display = 'none' ;
+    }else if ( value=='flow2027'||value=='vc2027'||value=='spd2027'){
+  document.getElementById('div2022').style.display = 'none' ;
+    document.getElementById('div2027').style.display = 'block' ;
+    document.getElementById('div2035').style.display = 'none' ;
+    document.getElementById('diva2022').style.display = 'none' ;
+    document.getElementById('diva2027').style.display = 'block' ;
+    document.getElementById('diva2035').style.display = 'none' ;
+    }else if ( value=='flow2035'||value=='vc2035'||value=='spd2035'){
+  document.getElementById('div2022').style.display = 'none' ;
+    document.getElementById('div2027').style.display = 'none' ;
+    document.getElementById('div2035').style.display = 'block' ;
+    document.getElementById('diva2022').style.display = 'none' ;
+    document.getElementById('diva2027').style.display = 'none' ;
+    document.getElementById('diva2035').style.display = 'block' ;
+    }               
+    }
+    </script>
 <div class="main">
-<!-- 左列 -->
-<div class="left-col">
-<section class="panel">
-<div class="title">基本信息（短/中/远期切换）</div>
-<div class="content">
-<label style="display:inline-flex;gap:8px;align-items:center;">
+    <div class="header">
+        <div class="header-left fl" id="time"></div>
+        <div class="header-center fl">
+            <div class="header-title">
+                雄安新区交通推演平台
+            </div>
+            <div class="header-img"></div>
+        </div>
+        <div class="header-right fl"></div>
+        <div class="header-bottom fl"></div>
 
-<ul id="statsList" style="margin-top:10px; line-height:1.9;"></ul>
+    </div>
+
+    <div class="center">
+        <div class="center-left fl">
+            <div class="left-top rightTop border">
+                <!--<h1 id="ceshi">数据可视化</h1>-->
+                <div class="title">基本信息</div>
+                <div class="top-list" id='div2022'>
+                    <ul>
+                        <li>道路路段总数：1481</li>
+                        <li>道路总里程：229km</li>
+                        <li>交叉口总个数：434</li>
+                        <li>机动车OD总量：1.9万 pcu/h</li>
+                        <li>平均路段交通量：466 pcu</li>
+                        <li>平均路段车速：45.88 km/h</li>
+                    </ul>
+                </div>
+                <div class="top-list" id='div2027'>
+                    <ul>
+                        <li>道路路段总数：3843</li>
+                        <li>道路总里程：739km</li>
+                        <li>交叉口总个数：1089</li>
+                        <li>机动车OD总量：5.2万 pcu/h</li>
+                        <li>平均路段交通量：565 pcu</li>
+                        <li>平均路段车速：64.73 km/h</li>
+                    </ul>
+                </div>
+                <div class="top-list" id='div2035'>
+                    <ul>
+                        <li>道路路段总数：6087</li>
+                        <li>道路总里程：1685km</li>
+                        <li>交叉口总个数：1859</li>
+                        <li>机动车OD总量：10.8万 pcu/h</li>
+                        <li>平均路段交通量：893 pcu</li>
+                        <li>平均路段车速：49.41 km/h</li>
+                    </ul>
+                </div>
+
+            </div>
+            <div class="left-cen rightTop border" id='diva2022'>
+                <!--<div class="title">交通运行状况 (2022年)</div> -->
+                <div class="title">交通运行状况 (2022年底)</div>
+                <ul class="top-list" >
+                
+                <li class="wodryRX2">平均出行时耗  9.76分钟</li><br/>
+                <li class="wodryRX2">平均行程车速  45.88千米/小时</li><br/>
+                <li class="wodryRX2">出行拥堵延时指数  1.03</li><br/>
+                <li class="wodryRX2">道路网络干道拥堵率  0.49%</li><br/>
+                <li class="wodryRX2">路段平均饱和度  13.31%</li><br/>
+                <li class="wodryRX2">节点平均饱和度  23.96%</li><br/>
+                </ul>
+            </div>
+            
+            <div class="left-cen rightTop border" id='diva2027'>
+                <!--<div class="title">交通运行状况 (2022年)</div> -->
+                <div class="title">交通运行状况 (2027年)</div>
+                <ul class="top-list">
+                <li class="wodryRX2">平均出行时耗  13.61分钟</li><br/>
+                <li class="wodryRX2">平均行程车速  35.33千米/小时</li><br/>
+                <li class="wodryRX2">出行拥堵延时指数  1.11</li><br/>
+                <li class="wodryRX2">道路网络干道拥堵率  2.26%</li><br/>
+                <li class="wodryRX2">路段平均饱和度  23.43%</li><br/>
+                <li class="wodryRX2">节点平均饱和度  42.96%</li><br/>
+                </ul>
+            </div>
+            
+            <div class="left-cen rightTop border" id='diva2035'>
+                <!--<div class="title">交通运行状况 (2022年)</div> -->
+                <div class="title">交通运行状况 (2035年)</div>
+                <ul class="top-list">
+                <li class="wodryRX2">平均出行时耗  20.76分钟</li><br/>
+                <li class="wodryRX2">平均行程车速  47.58 千米/小时</li><br/>
+                <li class="wodryRX2">出行拥堵延时指数  1.05</li><br/>
+                <li class="wodryRX2">道路网络干道拥堵率  1.18%</li><br/>
+                <li class="wodryRX2">路段平均饱和度  7.90%</li><br/>
+                <li class="wodryRX2">节点平均饱和度  19.90%</li><br/>
+                </ul>
+            </div>
+            
+            <div class="left-bottom rightTop border">
+                <div class="title">流量情况占比</div>
+                <div class="bottom-b">
+                    <div id="chart3" class="allnav"></div>
+                </div>
+
+            </div>
+        </div>
+        <div class="center-cen fl">
+            <div class="cen-top rightTop border">
+                <!-- <div class="top-title">
+                    <ul>
+                        <li>
+                            <p>数量统计</p>
+                            <span>3</span>
+                            <span>6</span>
+                            <span>5</span>
+                            <b>个</b>
+                        </li>
+                        <li>
+                            <p>同比上升</p>
+                            <span>1</span>
+                            <span>3</span>
+                            <b>%</b>
+                        </li>
+                    </ul>
+                </div> -->
+
+                <!-- <div class="top-bottom" style="background:white"> -->
+                    <!-- <div id="map" class="allnav" style="height: 4.4rem"></div> -->
+                    <select id="select_g" style="background-color: rgba(0,72,115,0.28)" onchange= "changediv(this.value)">
+                      <option value="flow2022">2022年底交通推演-流量</option>
+                       <option value="vc2022">2022年底交通推演-负荷</option>
+                        <option value="spd2022">2022年底交通推演-速度</option>
+                     <option value="flow2027">2027年交通推演-流量</option>
+                       <option value="vc2027">2027年交通推演-负荷</option>
+                        <option value="spd2027">2027年交通推演-速度</option>
+                        <option value="flow2035">2035年交通推演-流量</option>
+                       <option value="vc2035">2035年交通推演-负荷</option>
+                        <option value="spd2035">2035年交通推演-速度</option>
+                    </select>
+                    <iframe id = "ifr" src="html\\flow2022.html" style="height: 100%" width="100%"></iframe>
+                <!-- </div> -->
+
+
+            </div>
+            <div class="cen-bottom rightTop border">
+                <div class="title">运行变化情况</div>
+                <div class="bottom-b">
+                    <div id="chart4" class="allnav" style="width: 660px; height: 220px;"></div>
+                </div>
+
+            </div>
+        </div>
+        <div class="center-right fr">
+            <div class="right-top rightTop border">
+                <div class="title">分区出行效率排行</div>
+
+                <div class="echart wenzi">
+                    <div class="gun">
+                    <span>排名</span>
+                    <span>名称</span>
+                    <span>出行指数</span>
+                </div>
+                    <div id="FontScroll" class="myscroll">
+                        <ul>
+                            <li>
+                                <div class="fontInner clearfix">
+                                    <span>
+                                        <b>1</b>
+                                    </span>
+                                    <span>容城</span>
+                                    <span>2.42</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="fontInner clearfix">
+                                    <span>
+                                        <b>2</b>
+                                    </span>
+                                    <span>容东</span>
+                                    <span>2.38</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="fontInner clearfix">
+                                    <span>
+                                        <b>3</b>
+                                    </span>
+                                    <span>容西</span>
+                                    <span>2.30</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="fontInner clearfix">
+                                    <span>
+                                        <b>4</b>
+                                    </span>
+                                    <span>安新</span>
+                                    <span>2.22</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="fontInner clearfix">
+                                    <span>
+                                        <b>5</b>
+                                    </span>
+                                    <span>雄县</span>
+                                    <span>2.20</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="fontInner clearfix">
+                                    <span>
+                                        <b>6</b>
+                                    </span>
+                                    <span>昝岗</span>
+                                    <span>2.19</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="fontInner clearfix">
+                                    <span>
+                                        <b>7</b>
+                                    </span>
+                                    <span>寨里</span>
+                                    <span>2.18</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="fontInner clearfix">
+                                    <span>
+                                        <b>8</b>
+                                    </span>
+                                    <span>起步区</span>
+                                    <span>2.17</span>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+            <div class="right-cen border">
+                <div class="title">发生量分布</div>
+                <div class="right-cen-cent">
+                    <!-- <div id="chart2" class="allnav"></div> -->
+                    <iframe src="html\三维图.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                </div>
+
+            </div>
+            <div class="right-bottom rightTop border">
+                <div class="title">公交车运行统计</div>
+                <div class="chat">
+                    <iframe src="html\bus.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                    <!-- <div id="chart5" class="allnav"></div> -->
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
 </div>
-</section>
 
-<section class="panel">
-<div class="title">交通运行状况（随场景切换）</div>
-<div class="content">
-<ul id="opsList" style="line-height:1.9;"></ul>
-</div>
-</section>
-<section class="panel">
-<div class="title">流量情况占比（JSON 驱动）</div>
-<div id="chart3" style="height:100%;"></div>
-</section>
-</div>
-
-<!-- 中列 -->
-<div class="mid-col">
-<section class="panel">
-  <div class="title">地图/底图位</div>
-  <div class="img-slot" id="imgSlotMap">
-    <iframe src="static/html/kepler.gl.html"
-            style="width:100%; height:100%; border:none;"
-            title="交通地图"></iframe>
-  </div>
-</section>
-
-<section class="panel">
-  <div class="title">流量与速度（日变化）</div>
-  <div class="img-slot">
-    <!-- Plotly 将把 JSON 渲染到这个容器里 -->
-    <div id="dayPlot" style="width:100%;height:100%;"></div>
-  </div>
-</section>
-
-</div>
-<!-- 右列 -->
-<div class="right-col">
-<section class="panel">
-<div class="title">分区出行效率排行（HTML 插图）</div>
-<div class="img-slot" id="imgSlotA"></div>
-</section>
-<section class="panel">
-<div class="title">发生量分布（JSON 插图）</div>
-<div class="img-slot" id="imgSlotB"></div>
-</section>
-
-<section class="panel">
-<div class="title">公交在网数据</div>
-<div class="img-slot" id="imgSlotC"></div>
-</section>
-
-</div>
-</div>
-<!-- ============ 业务脚本：精简 + 注释齐全 ============ -->
-<script>
-(function() {
-  function init(){
-    var dom = document.getElementById('chart3');
-    if (!dom){ console.error('#chart3 容器缺失'); return; }
-    if (!window.echarts){ console.error('ECharts 未加载'); return; }
-    var chart3 = echarts.init(dom);
-    fetch('static/js/flow_bins.json').then(r=>r.json()).then(function(data){
-      const labelsFull  = data.labels || [];
-      const labelsShort = data.labels_short || labelsFull; // 用短标签展示
-      const counts = data.counts || [];
-      const seriesData = labelsShort.map((name,i)=>({
-        name, value: counts[i]||0, full: labelsFull[i] || name
-      }));
-
-      const PANEL = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() || '#0b1d2c';
-      const TEXT  = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#ffffff';
-
-      chart3.setOption({
-        backgroundColor: PANEL,
-        tooltip: {
-          trigger:'item',
-          formatter: p => `${p.data.full}<br/>数量：${p.value}<br/>占比：${p.percent.toFixed(1)}%` // tooltip 显示全称
-        },
-        legend: {
-          bottom: 6, type: 'scroll',   // 防止图例换行挤占空间
-          textStyle:{ color:TEXT }, itemWidth:12, itemHeight:12,
-          data: labelsShort
-        },
-        series: [{
-          type:'pie',
-          radius:['43%','66%'],        // 略缩半径
-          center:['44%','50%'],        // 向左/下微移，给右侧标签留空间
-          color: ['#f9d65c','#33d2c2','#20c997','#6f42c1','#d63384'],
-          itemStyle:{ borderColor: PANEL, borderWidth: 2 },
-          label: {
-            show:true,
-            color:TEXT,
-            formatter: p => `${p.name}: ${(Number(p.percent)||0).toFixed(1)}%`,
-            alignTo:'edge',
-            margin:8,
-            edgeDistance:'6%',
-            // 给标签一个最大宽度，避免超出容器
-            width: 120,
-            overflow: 'break'          // 宽度不够时自动换行
-          },
-          labelLine:{ show:true, length:12, length2:10, lineStyle:{ color:TEXT } },
-          labelLayout: { moveOverlap: 'shiftY', hideOverlap: true }, // 避免重叠
-          data: seriesData
-        }]
-      });
-
-      window.addEventListener('resize', ()=>chart3.resize());
-    }).catch(err=>console.error('flow_bins.json 加载失败', err));
-  }
-  if (document.readyState === 'complete') init();
-  else window.addEventListener('load', init);
-})();
+<!-- <script type="text/javascript">
+        document.getElementById("select_g").onchange =function(){
+            console.log(this.options[this.selectedIndex].innerHTML);
+            alert(“111)
+        }
 </script>
-
-
+ -->
+<script src="js/jquery.min.js"></script>
+<script src="https://www.jq22.com/jquery/echarts-4.2.1.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts-gl/dist/echarts-gl.min.js"></script>
+<script src="js/wodry.min.js"></script>
+<script src="js/fontscroll.js"></script>
+<script src="js/echarts.js"></script>
+<script src="js/china.js"></script>
+<!--<script src="js/mymap.js"></script>-->
 <script>
-(function(){
-  function pad(n){ return n<10 ? '0'+n : ''+n; }
-  function updateClock(){
-    var el = document.getElementById('time');
-    if (!el) return;
-    var now = new Date();
-    el.textContent =
-      now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' +
-      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-  }
-  updateClock();
-  setInterval(updateClock, 1000);
-})();
-</script>
+    /*$('#ceshi').wodry({
 
-<script>
-(function () {
-  // 获取主题变量，保持与页面风格一致
-  const rootStyle = getComputedStyle(document.documentElement);
-  const PANEL_BG = rootStyle.getPropertyValue('--panel').trim() || '#0e2538';
-  const TEXT_CLR = rootStyle.getPropertyValue('--text').trim()  || '#e7f6ff';
+        animation: 'rotateX',
 
-  // Flask 下用 url_for 来引用静态 JSON（放在 /static/js）
-  const DATA_URL = "static/js/day_chart.json";
+        delay: 1000,
 
-  function renderDayPlot() {
-    const mount = document.getElementById('dayPlot');
-    if (!mount) return;
+        animationDuration: 800
 
-    fetch(DATA_URL)
-      .then(r => r.json())
-      .then(fig => {
-        // —— 风格对齐：确保文字颜色与页面一致，背景透明保持面板底色透出 ——
-        fig.layout = Object.assign({}, fig.layout, {
-          paper_bgcolor: 'rgba(0,0,0,0)',
-          plot_bgcolor:  'rgba(0,0,0,0)',
-          font: Object.assign({ color: TEXT_CLR }, fig.layout?.font || {}),
-        
-        
-        
-        
-        
+    });*/
+    /*window.onload = function () {
+        setInterval(function () {
+            var hs=document.getElementById("ceshi");
+            var hstyle=hs.style.transform;
+            if(hstyle=='rotateX(-360deg)'){
+                //console.log(1)
+                hs.style.transform='rotateX(0deg)';
+                hs.style.transform='transform 500ms cubic-bezier(0.55, 0.18, 0.92, 0.46) 0s;'
+            }else {
+                hs.style.transform='rotateX(-360deg)';
+                hs.style.transition="all 2s";
+            }
+        }, 5000);
+    };*/
+    var counter = 3000;
+    var ulist=document.getElementById("ceshi").getElementsByTagName("li");
+    for (var i=0;i<ulist.length;i++){
+        //console.log(ulist[i].className);
+        var liclass=ulist[i].className;
+        var a= $('.'+liclass+'').wodry({
+            animation: 'rotateX',
+            delay: counter,
+            animationDuration: 1000
         });
+        if(counter>3050){
+            counter=3000;
+        }else {
+            counter +=10;
+        }
+        //console.log(counter);
 
-        // 如需在这里“临时”调整 y 轴范围，也很方便（示例注释）：
-        // fig.layout.yaxis  = Object.assign({}, fig.layout.yaxis,  { range: [0, 12000] }); // Flow
-        // fig.layout.yaxis2 = Object.assign({}, fig.layout.yaxis2, { range: [0,   120] }); // Speed
+    }
 
-        Plotly.newPlot(mount, fig.data, fig.layout, {
-          displayModeBar: true,
-          displaylogo: false,
-          responsive: true,
-          scrollZoom: true
-        });
-      })
-      .catch(err => {
-        console.error('day_chart.json 加载失败：', err);
-        mount.innerHTML = '<div style="color:'+TEXT_CLR+';padding:12px;">无法加载 /static/js/day_chart.json</div>';
-      });
-  }
+    //顶部时间
+    function getTime(){
+        var myDate = new Date();
+        var myYear = myDate.getFullYear(); //获取完整的年份(4位,1970-????)
+        var myMonth = myDate.getMonth()+1; //获取当前月份(0-11,0代表1月)
+        var myToday = myDate.getDate(); //获取当前日(1-31)
+        var myDay = myDate.getDay(); //获取当前星期X(0-6,0代表星期天)
+        var myHour = myDate.getHours(); //获取当前小时数(0-23)
+        var myMinute = myDate.getMinutes(); //获取当前分钟数(0-59)
+        var mySecond = myDate.getSeconds(); //获取当前秒数(0-59)
+        var week = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+        var nowTime;
 
-  if (document.readyState === 'complete') renderDayPlot();
-  else window.addEventListener('load', renderDayPlot);
-})();
+        nowTime = myYear+'-'+fillZero(myMonth)+'-'+fillZero(myToday)+'&nbsp;&nbsp;'+fillZero(myHour)+':'+fillZero(myMinute)+':'+fillZero(mySecond)+'&nbsp;&nbsp;'+week[myDay]+'&nbsp;&nbsp;';
+        //console.log(nowTime);
+        $('#time').html(nowTime);
+    };
+    function fillZero(str){
+        var realNum;
+        if(str<10){
+            realNum	= '0'+str;
+        }else{
+            realNum	= str;
+        }
+        return realNum;
+    }
+    setInterval(getTime,1000);
+
 </script>
-
-<script>
-(function(){
-  const mount = document.getElementById('imgSlotC'); // 右列“公交车流量统计”
-  if (!mount || !window.echarts) return;
-
-  const chart = echarts.init(mount);
-
-  // 读取主题变量，统一配色
-  const css = getComputedStyle(document.documentElement);
-  const PANEL = css.getPropertyValue('--panel').trim() || '#0e2538';
-  const TEXT  = css.getPropertyValue('--text').trim()  || '#e7f6ff';
-
-  fetch("static/js/flow_speed_scatter.json")
-    .then(r => r.json())
-    .then(opt => {
-      // 背景、坐标轴文字颜色与主题统一
-      opt.backgroundColor = PANEL;
-
-      // 合并/追加坐标轴样式（避免被覆盖）
-      opt.xAxis = Object.assign({
-        axisLine:  { lineStyle: { color: TEXT } },
-        axisLabel: { color: TEXT, margin: 10 },
-        nameTextStyle: { color: TEXT }
-      }, opt.xAxis || {});
-
-      opt.yAxis = Object.assign({
-        axisLine:  { lineStyle: { color: TEXT } },
-        axisLabel: { color: TEXT, margin: 8 },
-        nameTextStyle: { color: TEXT }
-      }, opt.yAxis || {});
-
-      // tooltip 在前端定义 formatter（JSON 里不能放函数）
-      opt.tooltip = {
-        trigger: 'item',
-        formatter: function (p) {
-          const d = p.data;               // dataset 的一行记录
-          // d 形如 {id, flow, speed}
-          return [
-            '路口：' + d.id,
-            '流量：' + d.flow + ' veh/h',
-            '速度：' + Number(d.speed).toFixed(1) + ' km/h'
-          ].join('<br/>');
-        },
-        backgroundColor: 'rgba(14,37,56,0.95)',
-        borderColor: 'rgba(255,255,255,0.10)',
-        textStyle: { color: TEXT }
-      };
-
-      // 再保证网格边距与“标签参与布局”生效，避免裁切
-      opt.grid = Object.assign({left:56,right:36,top:24,bottom:44,containLabel:true}, opt.grid || {});
-
-      chart.setOption(opt);
-      window.addEventListener('resize', () => chart.resize());
-    })
-    .catch(err => {
-      console.error('flow_speed_scatter.json 加载失败：', err);
-      mount.innerHTML = '<div style="color:'+TEXT+';padding:12px;">无法加载 /static/js/flow_speed_scatter.json</div>';
-    });
-})();
-</script>
-
 
 
 </body>
