@@ -9,167 +9,146 @@
 
     <script src="https://www.jq22.com/jquery/jquery-1.10.2.js"></script>
 
-    <script>
-        // 保留原有滚动初始化
-        $(function () {
-            $('.myscroll').myScroll({
-                speed: 60, // 数值越大，速度越慢
-                rowHeight: 38 // li 的高度
-            });
-        });
+ <script>
+// ===== 地图文件映射（按 指标×周期） =====
+var MAP_SRC = {
+  flow: {  // 流量
+    short: 'html/flow_short.html',
+    mid:   'html/flow_mid.html',
+    long:  'html/flow_long.html'
+  },
+  load: {  // 负荷
+    short: 'html/vc_short.html',
+    mid:   'html/vc_mid.html',
+    long:  'html/vc_long.html'
+  }
+};
 
-        // 自适应根字号（保留）
-        $(document).ready(function () {
-            var whei = $(window).width();
-            $("html").css({ fontSize: whei / 22 });
-            $(window).resize(function () {
-                var whei = $(window).width();
-                $("html").css({ fontSize: whei / 22 });
-            });
-        });
-    </script>
+// 当前状态（默认：短期 + 流量）
+window._currentPeriod = 'short';
+window._currentMetric = 'flow';
+
+// 读当前 select（兜底用）
+function currentPeriod(){ return (document.getElementById('periodSelectInPanel')||{}).value || window._currentPeriod || 'short'; }
+function currentMetric(){ return (document.getElementById('metricSelect')||{}).value || window._currentMetric || 'flow'; }
+
+// 只负责切换“指标”（两个下拉里的右边那个），然后刷新地图 iframe
+function applyMetric(key){
+  window._currentMetric = key;                      // 记住当前指标
+  var sel = document.getElementById('metricSelect');
+  if (sel) sel.value = key;                         // 同步 UI
+  updateMapSrc();                                   // 切地图
+  setTimeout(forceResizeMap, 60);                   // 触发子页 resize，防止只显示一角
+}
+
+// 统一更新地图 iframe 的 src（由 指标×周期 决定）
+function updateMapSrc(){
+  var p = currentPeriod();
+  var m = currentMetric();
+  var url = (MAP_SRC[m] && MAP_SRC[m][p]) ? MAP_SRC[m][p] : '';
+
+  var ifr = document.getElementById('ifr');
+  if (!ifr) return;
+  if (url) { ifr.src = url; ifr.style.display = 'block'; }
+  else     { ifr.removeAttribute('src'); ifr.style.display = 'none'; }
+}
+
+// 强制让内嵌地图库（kepler/Mapbox/Leaflet）重算尺寸
+function forceResizeMap(){
+  var ifr = document.getElementById('ifr');
+  try { if (ifr && ifr.contentWindow) ifr.contentWindow.dispatchEvent(new Event('resize')); } catch(e){}
+}
+
+// ===== 保留原有的滚动 & 自适应代码 =====
+$(function () {
+  $('.myscroll').myScroll({ speed: 60, rowHeight: 38 });
+});
+$(document).ready(function () {
+  var whei = $(window).width();
+  $("html").css({ fontSize: whei / 22 });
+  $(window).resize(function () {
+    var whei = $(window).width();
+    $("html").css({ fontSize: whei / 22 });
+  });
+});
+</script>
 
     <style>
-        /* 兼容原有隐藏控制 */
-        #div2027, #div2035, #diva2027, #diva2035 { display: none; }
+    /* 显隐：用 !important 压过内联 display */
+    .hidden  { display: none !important; }
+    .visible { display: block !important; }
 
-        /* ===== 全局周期选择器（右上角） ===== */
-        .header { position: relative; }
-        .period-select {
-            position: absolute;
-            top: 0.20rem;       /* 相对根字号，和现有标题保持距离 */
-            right: 0.38rem;
-            z-index: 1000;
-            --arrow-size: 0.14rem;
-        }
-        .period-select select {
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            font-size: 0.2rem;
-            line-height: 1;
-            padding: 0.25rem 0.60rem 0.20rem 0.20rem;
-            color: #fff;
-            background: rgba(0,72,115,0.28);  /* 与页面蓝色系一致的半透明底色 */
-            border: 1px solid rgba(255,255,255,0.35);
-            border-radius: 0.20rem;
-            outline: none;
-            cursor: pointer;
-            backdrop-filter: blur(4px);
-        }
-        /* 自定义下拉箭头（纯 CSS） */
-        .period-select {
-            --arrow-size: 0.13rem;
-        }
-        /* 取消原有点击发光，避免叠加冲突 */
-        .period-select select:focus,
-        .period-select select:active{
-          box-shadow:none; outline:none;
-        }
-        .period-select::after {
-            content: "";
-            position: absolute;
-            right: 0.3rem;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 0;
-            height: 0;
-            border-left: var(--arrow-size) solid transparent;
-            border-right: var(--arrow-size) solid transparent;
-            border-top: calc(var(--arrow-size) * 1.4) solid rgba(255,255,255,0.9);
-            pointer-events: none;
-        }
 
-        /* ===== 占位容器的统一样式（用于中期/长期的示意内容） ===== */
-        .placeholder-card {
-            width: 100%;
-            height: 100%;
-            border: 1px dashed rgba(255,255,255,0.35);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.6rem;
-            color: rgba(255,255,255,0.8);
-            letter-spacing: 0.02rem;
-        }
-
-        /* 右上排名表头（保留原样式基础上细化对齐） */
-        .echart.wenzi .gun span { flex: 1; text-align: center; }
-
-        /* 让中列上方容器内容填满 */
-        .cen-top .allnav,
-        .cen-top iframe { width: 100%; height: 100%; }
-
-        /* 统一隐藏：通过 JS 切换显示 */
-        .hidden { display: none !important; }
-        .visible { display: block !important; }
     </style>
 </head>
 
 <body>
-    <script>
-        // ====== 周期切换主控：短期/中期/长期 -> 2022/2027/2035 ======
-        function applyPeriod(key) {
-            // key: 'short' | 'mid' | 'long'
-            var map = {
-                short: { year: '2022', iframe: 'html\\flow2022.html' },
-                mid:   { year: '2027', iframe: 'html\\flow2027.html' },
-                long:  { year: '2035', iframe: 'html\\flow2035.html' }
-            };
-            var conf = map[key] || map.short;
+ <script>
+function applyPeriod(key) {
+  // 记住当前周期
+  window._currentPeriod = key;
 
-            // 1) 左列-基本信息 三组切换
-            document.getElementById('div2022').style.display = (conf.year==='2022'?'block':'none');
-            document.getElementById('div2027').style.display = (conf.year==='2027'?'block':'none');
-            document.getElementById('div2035').style.display = (conf.year==='2035'?'block':'none');
+  // 左列 - 基本信息
+  toggleById('div_short', key==='short');
+  toggleById('div_mid',   key==='mid');
+  toggleById('div_long',  key==='long');
 
-            // 2) 左列-交通运行状况 三组切换
-            document.getElementById('diva2022').style.display = (conf.year==='2022'?'block':'none');
-            document.getElementById('diva2027').style.display = (conf.year==='2027'?'block':'none');
-            document.getElementById('diva2035').style.display = (conf.year==='2035'?'block':'none');
+  // 左列 - 交通运行状况
+  toggleById('diva_short', key==='short');
+  toggleById('diva_mid',   key==='mid');
+  toggleById('diva_long',  key==='long');
 
-            // 3) 左下图表（三个占位容器切换）
-            toggleById('chart3',           conf.year==='2022');
-            toggleById('chart3_2027',      conf.year==='2027');
-            toggleById('chart3_2035',      conf.year==='2035');
+  // 左下 - 环形图容器
+  toggleById('panel_ring_short', key==='short');
+  toggleById('panel_ring_mid',   key==='mid');
+  toggleById('panel_ring_long',  key==='long');
 
-            // 4) 中列-上方地图 iframe 切换
-            var ifr = document.getElementById('ifr');
-            if (ifr && conf.iframe) ifr.src = conf.iframe;
+  // 中列 - 地图 iframe（由 “指标×周期” 共同决定）
+  updateMapSrc();
 
-            // 5) 中列-下方图表（三个占位容器切换）
-            toggleById('chart4',           conf.year==='2022');
-            toggleById('chart4_2027',      conf.year==='2027');
-            toggleById('chart4_2035',      conf.year==='2035');
+  // 中下 - 柱线图容器
+  toggleById('panel_bar_short', key==='short');
+  toggleById('panel_bar_mid',   key==='mid');
+  toggleById('panel_bar_long',  key==='long');
 
-            // 6) 右列-上方排名（三个列表切换）
-            toggleById('rank_2022_wrap',   conf.year==='2022');
-            toggleById('rank_2027_wrap',   conf.year==='2027');
-            toggleById('rank_2035_wrap',   conf.year==='2035');
+  // 右列 - 排行/中部/底部
+  toggleById('rank_short_wrap', key==='short');
+  toggleById('rank_mid_wrap',   key==='mid');
+  toggleById('rank_long_wrap',  key==='long');
 
-            // 7) 右列-中部/底部 占位内容切换（可自行替换为不同 iframe 或图表）
-            toggleById('rightmid_2022',    conf.year==='2022');
-            toggleById('rightmid_2027',    conf.year==='2027');
-            toggleById('rightmid_2035',    conf.year==='2035');
+  toggleById('rightmid_short',  key==='short');
+  toggleById('rightmid_mid',    key==='mid');
+  toggleById('rightmid_long',   key==='long');
 
-            toggleById('rightbot_2022',    conf.year==='2022');
-            toggleById('rightbot_2027',    conf.year==='2027');
-            toggleById('rightbot_2035',    conf.year==='2035');
-        }
+  toggleById('rightbot_short',  key==='short');
+  toggleById('rightbot_mid',    key==='mid');
+  toggleById('rightbot_long',   key==='long');
 
-        function toggleById(id, show) {
-            var el = document.getElementById(id);
-            if (!el) return;
-            if (show) {
-                el.classList.remove('hidden');
-                el.classList.add('visible');
-            } else {
-                el.classList.remove('visible');
-                el.classList.add('hidden');
-            }
-        }
-    </script>
+  // —— 图表只在首次进入对应周期时初始化（避免重复 init/定时器）——
+  window._chart_once = window._chart_once || {};
+  function once(name, fn){ if(window._chart_once[name]) return; window._chart_once[name] = true; try{ fn(); }catch(e){ console.error(e); } }
+
+  if (key === 'short') {
+    once('ring_short',    ring_short);
+    once('barLine_short', barLine_short);
+  } else if (key === 'mid') {
+    once('ring_mid',      ring_mid);
+    once('barLine_mid',   barLine_mid);
+  } else if (key === 'long') {
+    once('ring_long',     ring_long);
+    once('barLine_long',  barLine_long);
+  }
+
+  setTimeout(forceResizeMap, 60);
+}
+
+function toggleById(id, show) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (show) { el.classList.remove('hidden'); el.classList.add('visible'); }
+  else      { el.classList.remove('visible'); el.classList.add('hidden'); }
+}
+</script>
 
     <div class="main">
         <div class="header">
@@ -178,15 +157,6 @@
             <div class="header-center fl">
                 <div class="header-title">雄安新区交通推演平台</div>
                 <div class="header-img"></div>
-            </div>
-
-            <!-- 全局右上角：周期下拉 -->
-            <div class="period-select">
-                <select id="periodSelect" aria-label="切换周期（短期/中期/长期）" onchange="applyPeriod(this.value)">
-                    <option value="short" selected>短期</option>
-                    <option value="mid">中期</option>
-                    <option value="long">长期</option>
-                </select>
             </div>
 
             <div class="header-right fl"></div>
@@ -200,7 +170,7 @@
                     <div class="title">基本信息</div>
 
                     <!-- 短期（2022） -->
-                    <div class="top-list" id="div2022">
+                    <div class="top-list" id="div_short">
                         <ul>
                             <li>道路路段总数：1481</li>
                             <li>道路总里程：229km</li>
@@ -211,8 +181,8 @@
                         </ul>
                     </div>
 
-                    <!-- 中期（2027） -->
-                    <div class="top-list" id="div2027" style="display:none;">
+                    <!-- 中期 -->
+                    <div class="top-list" id="div_mid" style="display:none;">
                         <ul>
                             <li>道路路段总数：3843</li>
                             <li>道路总里程：739km</li>
@@ -223,8 +193,8 @@
                         </ul>
                     </div>
 
-                    <!-- 长期（2035） -->
-                    <div class="top-list" id="div2035" style="display:none;">
+                    <!-- 长期 -->
+                    <div class="top-list" id="div_long" style="display:none;">
                         <ul>
                             <li>道路路段总数：6087</li>
                             <li>道路总里程：1685km</li>
@@ -237,8 +207,8 @@
                 </div>
 
                 <!-- 交通运行状况（短/中/长期三套） -->
-                <div class="left-cen rightTop border" id="diva2022">
-                    <div class="title">交通运行状况 (2022年底)</div>
+                <div class="left-cen rightTop border" id="diva_short">
+                    <div class="title">交通运行状况（短期）</div>
                     <ul class="top-list">
                         <li class="wodryRX2">平均出行时耗  9.76分钟</li><br/>
                         <li class="wodryRX2">平均行程车速  45.88千米/小时</li><br/>
@@ -249,8 +219,8 @@
                     </ul>
                 </div>
 
-                <div class="left-cen rightTop border" id="diva2027" style="display:none;">
-                    <div class="title">交通运行状况 (2027年)</div>
+                <div class="left-cen rightTop border" id="diva_mid" style="display:none;">
+                    <div class="title">交通运行状况（中期）</div>
                     <ul class="top-list">
                         <li class="wodryRX2">平均出行时耗  13.61分钟</li><br/>
                         <li class="wodryRX2">平均行程车速  35.33千米/小时</li><br/>
@@ -261,8 +231,8 @@
                     </ul>
                 </div>
 
-                <div class="left-cen rightTop border" id="diva2035" style="display:none;">
-                    <div class="title">交通运行状况 (2035年)</div>
+                <div class="left-cen rightTop border" id="diva_long" style="display:none;">
+                    <div class="title">交通运行状况（长期）</div>
                     <ul class="top-list">
                         <li class="wodryRX2">平均出行时耗  20.76分钟</li><br/>
                         <li class="wodryRX2">平均行程车速  47.58 千米/小时</li><br/>
@@ -276,15 +246,17 @@
                 <div class="left-bottom rightTop border">
                     <div class="title">流量情况占比</div>
                     <div class="bottom-b" style="height: 220px;">
-                        <!-- 短期默认图表容器（与原ID一致，便于兼容你现有的 echarts.js） -->
-                        <div id="chart3" class="allnav visible" style="width:100%; height:100%;"></div>
-
-                        <!-- 中期/长期占位容器（可替换为具体图表） -->
-                        <div id="chart3_2027" class="allnav hidden" style="width:100%; height:100%;">
-                            <div class="placeholder-card">中期（2027）流量占比图表占位</div>
+                        <!-- 短期默认图表容器 -->
+                        <div id="panel_ring_short" class="allnav visible" style="width:100%; height:100%;">
+                        <div id="ring_short" style="width:100%; height:100%;"></div>
                         </div>
-                        <div id="chart3_2035" class="allnav hidden" style="width:100%; height:100%;">
-                            <div class="placeholder-card">长期（2035）流量占比图表占位</div>
+                        <!-- 中期 -->
+                        <div id="panel_ring_mid" class="allnav hidden" style="width:100%; height:100%;">
+                            <div id="ring_mid" style="width:100%; height:100%;"></div>
+                        </div>
+                        <!-- 长期 -->
+                        <div id="panel_ring_long" class="allnav hidden" style="width:100%; height:100%;">
+                            <div id="ring_long" style="width:100%; height:100%;"></div>
                         </div>
                     </div>
                 </div>
@@ -292,27 +264,40 @@
 
             <!-- ===== 中列 ===== -->
             <div class="center-cen fl">
-                <div class="cen-top rightTop border">
-                    <!-- 已移除原“中列第一图”里的下拉框；iframe 随周期切换 -->
-                    <iframe id="ifr" src="html\\flow2022.html" frameborder="0"></iframe>
-                </div>
+            <div class="cen-top rightTop border">
+              <select id="periodSelectInPanel" style="background-color: rgba(0,72,115,0.28)" onchange="applyPeriod(this.value)">
+                <option value="short" selected>短期</option>
+                <option value="mid">中期</option>
+                <option value="long">长期</option>
+              </select>
+              <select id="metricSelect" style="background-color: rgba(0,72,115,0.28)" onchange="applyMetric(this.value)">
+                <option value="flow" selected>流量</option>
+                <option value="load">负荷</option>
+              </select>
+                <!--iframe 随周期切换 -->
+                <iframe id="ifr" src="html/flow_short.html"style="height: 100%" width="100%" ></iframe>
+            </div>
 
-                <div class="cen-bottom rightTop border">
-                    <div class="title">运行变化情况</div>
-                    <div class="bottom-b" style="width: 660px; height: 220px;">
-                        <!-- 短期默认图表容器（与原ID一致） -->
-                        <div id="chart4" class="allnav visible" style="width:100%; height:100%;"></div>
+                    <div class="cen-bottom rightTop border">
+                    <div class="title">道路运行变化情况</div>
+                    <div class="bottom-b">
 
-                        <!-- 中期/长期占位容器 -->
-                        <div id="chart4_2027" class="allnav hidden" style="width:100%; height:100%;">
-                            <div class="placeholder-card">中期（2027）运行变化图表占位</div>
-                        </div>
-                        <div id="chart4_2035" class="allnav hidden" style="width:100%; height:100%;">
-                            <div class="placeholder-card">长期（2035）运行变化图表占位</div>
-                        </div>
+                    <!-- 短期默认图表容器（与原ID一致） -->
+                    <!-- 短期 -->
+                    <div id="panel_bar_short" style="width:100%;height:100%;">
+                      <div id="barLine_short" style="width:100%;height:100%;"></div>
+                    </div>
+                    <!-- 中期 -->
+                    <div id="panel_bar_mid" style="display:none;width:100%;height:100%;">
+                      <div id="barLine_mid" style="width:100%;height:100%;"></div>
+                    </div>
+                    <!-- 长期 -->
+                    <div id="panel_bar_long" style="display:none;width:100%;height:100%;">
+                      <div id="barLine_long" style="width:100%;height:100%;"></div>
+                    </div>
                     </div>
                 </div>
-            </div>
+                </div>
 
             <!-- ===== 右列 ===== -->
             <div class="center-right fr">
@@ -320,7 +305,7 @@
                     <div class="title">分区出行效率排行</div>
 
                     <!-- 短期（2022）排行：保留原结构与滚动 -->
-                    <div id="rank_2022_wrap" class="echart wenzi visible">
+                    <div id="rank_short_wrap" class="echart wenzi visible">
                         <div class="gun">
                             <span>排名</span>
                             <span>名称</span>
@@ -340,35 +325,35 @@
                         </div>
                     </div>
 
-                    <!-- 中期（2027）排行占位 -->
-                    <div id="rank_2027_wrap" class="echart wenzi hidden">
+                    <!-- 中期排行占位 -->
+                    <div id="rank_mid_wrap" class="echart wenzi hidden">
                         <div class="gun">
                             <span>排名</span><span>名称</span><span>出行指数</span>
                         </div>
-                        <div class="placeholder-card" style="height: 220px;">中期（2027）分区排行占位</div>
+                        <div class="placeholder-card" style="height: 220px;">中期分区排行占位</div>
                     </div>
 
-                    <!-- 长期（2035）排行占位 -->
-                    <div id="rank_2035_wrap" class="echart wenzi hidden">
+                    <!-- 长期排行占位 -->
+                    <div id="rank_long_wrap" class="echart wenzi hidden">
                         <div class="gun">
                             <span>排名</span><span>名称</span><span>出行指数</span>
                         </div>
-                        <div class="placeholder-card" style="height: 220px;">长期（2035）分区排行占位</div>
+                        <div class="placeholder-card" style="height: 220px;">长期分区排行占位</div>
                     </div>
                 </div>
 
                 <div class="right-cen border">
-                    <div class="title">发生量分布</div>
-                    <div class="right-cen-cent" style="height: 260px;">
+                    <div class="title">路口排队情况</div>
+                    <div class="right-cen-cent" style="height: 250px;">
                         <!-- 右中：短期用原三维图 iframe；中/长期为占位容器（可替换为不同 src） -->
-                        <div id="rightmid_2022" class="visible" style="width:100%; height:100%;">
-                            <iframe src="html\\三维图.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        <div id="rightmid_short" class="visible" style="width:100%; height:98%;">
+                            <iframe src="html/day_delay.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
                         </div>
-                        <div id="rightmid_2027" class="hidden" style="width:100%; height:100%;">
-                            <div class="placeholder-card">中期（2027）三维/热力图占位</div>
+                        <div id="rightmid_mid" class="hidden" style="width:100%; height:100%;">
+                            <iframe src="html/week_delay.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
                         </div>
-                        <div id="rightmid_2035" class="hidden" style="width:100%; height:100%;">
-                            <div class="placeholder-card">长期（2035）三维/热力图占位</div>
+                        <div id="rightmid_long" class="hidden" style="width:100%; height:100%;">
+                            <iframe src="html/week_delay.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
                         </div>
                     </div>
                 </div>
@@ -377,14 +362,14 @@
                     <div class="title">公交车运行统计</div>
                     <div class="chat" style="height: 220px;">
                         <!-- 右下：短期沿用原 iframe；中/长期为占位容器（可替换为不同 src） -->
-                        <div id="rightbot_2022" class="visible" style="width:100%; height:100%;">
-                            <iframe src="html\\bus.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        <div id="rightbot_short" class="visible" style="width:100%; height:100%;">
+                            <iframe src="html/bus_short.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
                         </div>
-                        <div id="rightbot_2027" class="hidden" style="width:100%; height:100%;">
-                            <div class="placeholder-card">中期（2027）公交运行统计占位</div>
+                        <div id="rightbot_mid" class="hidden" style="width:100%; height:100%;">
+                            <iframe src="html/bus_mid.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
                         </div>
-                        <div id="rightbot_2035" class="hidden" style="width:100%; height:100%;">
-                            <div class="placeholder-card">长期（2035）公交运行统计占位</div>
+                        <div id="rightbot_long" class="hidden" style="width:100%; height:100%;">
+                            <iframe src="html/bus_long.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
                         </div>
                     </div>
                 </div>
@@ -392,18 +377,17 @@
         </div><!-- /center -->
     </div><!-- /main -->
 
-    <!-- 原有脚本依赖（保留） -->
+    <!-- 原有脚本依赖 -->
     <script src="js/jquery.min.js"></script>
     <script src="https://www.jq22.com/jquery/echarts-4.2.1.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts-gl/dist/echarts-gl.min.js"></script>
     <script src="js/wodry.min.js"></script>
     <script src="js/fontscroll.js"></script>
-    <script src="js/echarts.js"></script>
-    <script src="js/china.js"></script>
+    <script src="js/echarts.fillfix.js"></script>
 
     <script>
-        // 顶部时间（保留）
+        // 顶部时间
         function getTime(){
             var myDate = new Date();
             var myYear = myDate.getFullYear();
@@ -427,5 +411,7 @@
             applyPeriod('short');
         });
     </script>
+
+
 </body>
 </html>
