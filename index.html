@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta charset="UTF-8" />
     <title>雄安</title>
     <link rel="stylesheet" href="css/wodry.css">
     <link rel="stylesheet" href="css/index.css">
     <link rel="stylesheet" href="css/public.css">
+    <link rel="stylesheet" href="css/chart.css">
 
     <script src="https://www.jq22.com/jquery/jquery-1.10.2.js"></script>
 
@@ -24,7 +26,7 @@ var MAP_SRC = {
   }
 };
 
-// 当前状态（默认：短期 + 流量）
+// 当前状态（默认:  短期 + 流量）
 window._currentPeriod = 'short';
 window._currentMetric = 'flow';
 
@@ -59,10 +61,6 @@ function forceResizeMap(){
   try { if (ifr && ifr.contentWindow) ifr.contentWindow.dispatchEvent(new Event('resize')); } catch(e){}
 }
 
-// ===== 保留原有的滚动 & 自适应代码 =====
-$(function () {
-  $('.myscroll').myScroll({ speed: 60, rowHeight: 38 });
-});
 $(document).ready(function () {
   var whei = $(window).width();
   $("html").css({ fontSize: whei / 22 });
@@ -74,17 +72,62 @@ $(document).ready(function () {
 </script>
 
     <style>
-    /* 显隐：用 !important 压过内联 display */
+    /* 显隐:  用 !important 压过内联 display */
     .hidden  { display: none !important; }
     .visible { display: block !important; }
-
 
     </style>
 </head>
 
 <body>
  <script>
+    // 映射:  三个周期 → 各自日期
+var PERIOD_DATE = {
+  short: '2025年09月16日',
+  mid:   '2027年08月01日',
+  long:  '2030年12月08日'
+};
+
+function ensureScrollRunning($wrap){
+  if (!$wrap.length) return;
+  // 第一次进入：正确的行高初始化
+  if (!$wrap.data('scroll-inited')) {
+    var step = Math.round($wrap.find('li').first().outerHeight(true)) || 42;
+    $wrap.myScroll({ speed: 30, rowHeight: step });
+    $wrap.data('scroll-inited', true);
+  } else {
+    // 已初始化过：显示出来后强制重启
+    $wrap.triggerHandler('mouseleave');
+  }
+}
+
+function updatePeriodDate(p){
+  var el = document.getElementById('periodDate');
+  if (el) el.textContent = PERIOD_DATE[p] || '';
+}
+
+function initMetricsScroll(period){
+  var $wrap = $('#diva_' + period + ' .myscroll');
+  if ($wrap.length && !$wrap.data('scroll-inited')) {
+    // 取第一行真实像素高度（含上下 margin 更稳）
+    var step = Math.round($wrap.find('li').first().outerHeight(true)) || 42;
+    $wrap.myScroll({ speed: 100, rowHeight: step });
+    $wrap.data('scroll-inited', true);
+  }
+}
+
 function applyPeriod(key) {
+  window._currentPeriod = key;
+  updatePeriodDate(key);  // ← 新增:  切换就更新日期
+
+  var $wrap = $('#scroll_' + key + ' .myscroll');
+
+  if ($wrap.length && !$wrap.data('scroll-inited')) {
+    $wrap.myScroll({ speed: 100 });
+    $wrap.data('scroll-inited', true);
+  }
+  initMetricsScroll(key);
+
   // 记住当前周期
   window._currentPeriod = key;
 
@@ -112,9 +155,9 @@ function applyPeriod(key) {
   toggleById('panel_bar_long',  key==='long');
 
   // 右列 - 排行/中部/底部
-  toggleById('rank_short_wrap', key==='short');
-  toggleById('rank_mid_wrap',   key==='mid');
-  toggleById('rank_long_wrap',  key==='long');
+  toggleById('scroll_short', key==='short');
+  toggleById('scroll_mid',   key==='mid');
+  toggleById('scroll_long',  key==='long');
 
   toggleById('rightmid_short',  key==='short');
   toggleById('rightmid_mid',    key==='mid');
@@ -139,8 +182,19 @@ function applyPeriod(key) {
     once('barLine_long',  barLine_long);
   }
 
-  setTimeout(forceResizeMap, 60);
+    // 切换周期后，过一会儿重启滚动（确保显示后再启动）
+    setTimeout(function(){
+    ensureScrollRunning($('#diva_'   + key + ' .myscroll')); // 左侧“交通运行状况”
+    ensureScrollRunning($('#scroll_' + key + ' .myscroll')); // 右侧“排行”
+  }, 0);
 }
+
+// 首次渲染
+document.addEventListener('DOMContentLoaded', function(){
+  var sel = document.getElementById('periodSelectInPanel');
+  var initPeriod = (sel && sel.value) || 'short';
+  updatePeriodDate(initPeriod);
+});
 
 function toggleById(id, show) {
   var el = document.getElementById(id);
@@ -172,91 +226,142 @@ function toggleById(id, show) {
                     <!-- 短期（2022） -->
                     <div class="top-list" id="div_short">
                         <ul>
-                            <li>道路路段总数：1481</li>
-                            <li>道路总里程：229km</li>
-                            <li>交叉口总个数：434</li>
-                            <li>机动车OD总量：1.9万 pcu/h</li>
-                            <li>平均路段交通量：466 pcu</li>
-                            <li>平均路段车速：45.88 km/h</li>
+                        <li class="metric"><span class="name">道路网络的路段总数</span><span class="value">652</span><span class="unit">条</span></li>
+                        <li class="metric"><span class="name">道路网络的交叉口总数</span><span class="value">xxx</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name">交通网络所有路段总里程</span><span class="value">24.29</span><span class="unit">km</span></li>
+                        <li class="metric"><span class="name">交通网络路段的平均长度</span><span class="value">295.47</span><span class="unit">m</span></li>
+                        <li class="metric"><span class="name"><b>容东片区</b>公交站点数量</span><span class="value">xxx</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name"><b>容东片区</b>公交线路数量</span><span class="value">xxx</span><span class="unit">条</span></li>
                         </ul>
                     </div>
 
                     <!-- 中期 -->
                     <div class="top-list" id="div_mid" style="display:none;">
-                        <ul>
-                            <li>道路路段总数：3843</li>
-                            <li>道路总里程：739km</li>
-                            <li>交叉口总个数：1089</li>
-                            <li>机动车OD总量：5.2万 pcu/h</li>
-                            <li>平均路段交通量：565 pcu</li>
-                            <li>平均路段车速：64.73 km/h</li>
-                        </ul>
+                    <ul>
+                        <li class="metric"><span class="name">道路网络的路段总数</span><span class="value">652</span><span class="unit">条</span></li>
+                        <li class="metric"><span class="name">道路网络的交叉口总数</span><span class="value">342</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name">交通网络所有路段总里程</span><span class="value">24.29</span><span class="unit">km</span></li>
+                        <li class="metric"><span class="name">交通网络路段的平均长度</span><span class="value">295.47</span><span class="unit">m</span></li>
+                        <li class="metric"><span class="name"><b>容东片区</b>公交站点数量</span><span class="value">1,185</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name"><b>容东片区</b>公交线路数量</span><span class="value">466</span><span class="unit">条</span></li>
+                    </ul>
                     </div>
 
                     <!-- 长期 -->
                     <div class="top-list" id="div_long" style="display:none;">
                         <ul>
-                            <li>道路路段总数：6087</li>
-                            <li>道路总里程：1685km</li>
-                            <li>交叉口总个数：1859</li>
-                            <li>机动车OD总量：10.8万 pcu/h</li>
-                            <li>平均路段交通量：893 pcu</li>
-                            <li>平均路段车速：49.41 km/h</li>
+                        <li class="metric"><span class="name">道路网络的路段总数</span><span class="value">652</span><span class="unit">条</span></li>
+                        <li class="metric"><span class="name">道路网络的交叉口总数</span><span class="value">342</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name">交通网络所有路段总里程</span><span class="value">24.29</span><span class="unit">km</span></li>
+                        <li class="metric"><span class="name">交通网络路段的平均长度</span><span class="value">295.47</span><span class="unit">m</span></li>
+                        <li class="metric"><span class="name"><b>容东片区</b>公交站点数量</span><span class="value">1,185</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name"><b>容东片区</b>公交线路数量</span><span class="value">466</span><span class="unit">条</span></li>
                         </ul>
                     </div>
                 </div>
 
-                <!-- 交通运行状况（短/中/长期三套） -->
+                <!-- 短期 -->
                 <div class="left-cen rightTop border" id="diva_short">
-                    <div class="title">交通运行状况（短期）</div>
-                    <ul class="top-list">
-                        <li class="wodryRX2">平均出行时耗  9.76分钟</li><br/>
-                        <li class="wodryRX2">平均行程车速  45.88千米/小时</li><br/>
-                        <li class="wodryRX2">出行拥堵延时指数  1.03</li><br/>
-                        <li class="wodryRX2">道路网络干道拥堵率  0.49%</li><br/>
-                        <li class="wodryRX2">路段平均饱和度  13.31%</li><br/>
-                        <li class="wodryRX2">节点平均饱和度  23.96%</li><br/>
+                <div class="title">交通运行状况（短期）</div>
+                <div class="myscroll" id="metrics_short">
+                    <ul class="left-cen metrics-list">
+                <li><div class="fontInner"><span class="label"><b>路段平均饱和度</b></span><span class="value">
+                    <span class="num">67.80 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>道路网络平均速度</b></span><span class="value">
+                    <span class="num">34.60 </span><span class="unit">千米/小时</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>平均排队长度</b></span><span class="value">
+                    <span class="num">3.40 </span><span class="unit">pcu</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>公交平均准点率</b></span><span class="value">
+                    <span class="num">88.20 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>行程时间比</b></span><span class="value">
+                    <span class="num">1.43 </span><span class="unit"> </span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>路口平均饱和度</b></span><span class="value">
+                    <span class="num">82.50 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>拥堵里程占比</b></span><span class="value">
+                    <span class="num">22.00 </span><span class="unit">%</span></span></div></li>
+
                     </ul>
                 </div>
-
-                <div class="left-cen rightTop border" id="diva_mid" style="display:none;">
-                    <div class="title">交通运行状况（中期）</div>
-                    <ul class="top-list">
-                        <li class="wodryRX2">平均出行时耗  13.61分钟</li><br/>
-                        <li class="wodryRX2">平均行程车速  35.33千米/小时</li><br/>
-                        <li class="wodryRX2">出行拥堵延时指数  1.11</li><br/>
-                        <li class="wodryRX2">道路网络干道拥堵率  2.26%</li><br/>
-                        <li class="wodryRX2">路段平均饱和度  23.43%</li><br/>
-                        <li class="wodryRX2">节点平均饱和度  42.96%</li><br/>
-                    </ul>
                 </div>
 
-                <div class="left-cen rightTop border" id="diva_long" style="display:none;">
-                    <div class="title">交通运行状况（长期）</div>
-                    <ul class="top-list">
-                        <li class="wodryRX2">平均出行时耗  20.76分钟</li><br/>
-                        <li class="wodryRX2">平均行程车速  47.58 千米/小时</li><br/>
-                        <li class="wodryRX2">出行拥堵延时指数  1.05</li><br/>
-                        <li class="wodryRX2">道路网络干道拥堵率  1.18%</li><br/>
-                        <li class="wodryRX2">路段平均饱和度  7.90%</li><br/>
-                        <li class="wodryRX2">节点平均饱和度  19.90%</li><br/>
+                <!-- 中期 -->
+                <div class="left-cen rightTop border" id="diva_mid">
+                <div class="title">交通运行状况（中期）</div>
+                <div class="myscroll" id="metrics_mid">
+                    <ul class="left-cen metrics-list">
+                <li><div class="fontInner"><span class="label"><b>路段平均饱和度</b></span><span class="value">
+                    <span class="num">67.80 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>道路网络平均速度</b></span><span class="value">
+                    <span class="num">34.60 </span><span class="unit">千米/小时</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>平均排队长度</b></span><span class="value">
+                    <span class="num">3.40 </span><span class="unit">pcu</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>公交平均准点率</b></span><span class="value">
+                    <span class="num">88.20 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>行程时间比</b></span><span class="value">
+                    <span class="num">1.43 </span><span class="unit"> </span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>路口平均饱和度</b></span><span class="value">
+                    <span class="num">82.50 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>拥堵里程占比</b></span><span class="value">
+                    <span class="num">22.00 </span><span class="unit">%</span></span></div></li>
                     </ul>
+                </div>
+                </div>
+
+                <!-- 长期 -->
+                <div class="left-cen rightTop border" id="diva_long">
+                <div class="title">交通运行状况（长期）</div>
+                <div class="myscroll" id="metrics_long">
+                    <ul class="left-cen metrics-list">
+                <li><div class="fontInner"><span class="label"><b>路段平均饱和度</b></span><span class="value">
+                    <span class="num">67.80 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>道路网络平均速度</b></span><span class="value">
+                    <span class="num">34.60 </span><span class="unit">千米/小时</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>平均排队长度</b></span><span class="value">
+                    <span class="num">3.40 </span><span class="unit">pcu</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>公交平均准点率</b></span><span class="value">
+                    <span class="num">88.20 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>行程时间比</b></span><span class="value">
+                    <span class="num">1.43 </span><span class="unit"> </span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>路口平均饱和度</b></span><span class="value">
+                    <span class="num">82.50 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label"><b>拥堵里程占比</b></span><span class="value">
+                    <span class="num">22.00 </span><span class="unit">%</span></span></div></li>
+                    </ul>
+                </div>
                 </div>
 
                 <div class="left-bottom rightTop border">
-                    <div class="title">流量情况占比</div>
+                    <div class="title">路段服务水平等级占比</div>
                     <div class="bottom-b" style="height: 220px;">
                         <!-- 短期默认图表容器 -->
                         <div id="panel_ring_short" class="allnav visible" style="width:100%; height:100%;">
-                        <div id="ring_short" style="width:100%; height:100%;"></div>
+                        <div id="ring_short" class="chart-box"></div>
                         </div>
                         <!-- 中期 -->
                         <div id="panel_ring_mid" class="allnav hidden" style="width:100%; height:100%;">
-                            <div id="ring_mid" style="width:100%; height:100%;"></div>
+                            <div id="ring_mid" class="chart-box"></div>
                         </div>
                         <!-- 长期 -->
                         <div id="panel_ring_long" class="allnav hidden" style="width:100%; height:100%;">
-                            <div id="ring_long" style="width:100%; height:100%;"></div>
+                            <div id="ring_long" class="chart-box"></div>
                         </div>
                     </div>
                 </div>
@@ -274,6 +379,9 @@ function toggleById(id, show) {
                 <option value="flow" selected>流量</option>
                 <option value="load">负荷</option>
               </select>
+
+              <div class="period-date" id="periodDate">2022年09月30日</div>
+              
                 <!--iframe 随周期切换 -->
                 <iframe id="ifr" src="html/flow_short.html"style="height: 100%" width="100%" ></iframe>
             </div>
@@ -285,15 +393,15 @@ function toggleById(id, show) {
                     <!-- 短期默认图表容器（与原ID一致） -->
                     <!-- 短期 -->
                     <div id="panel_bar_short" style="width:100%;height:100%;">
-                      <div id="barLine_short" style="width:100%;height:100%;"></div>
+                      <div id="barLine_short"  class="chart-box"></div>
                     </div>
                     <!-- 中期 -->
                     <div id="panel_bar_mid" style="display:none;width:100%;height:100%;">
-                      <div id="barLine_mid" style="width:100%;height:100%;"></div>
+                      <div id="barLine_mid"  class="chart-box"></div>
                     </div>
                     <!-- 长期 -->
                     <div id="panel_bar_long" style="display:none;width:100%;height:100%;">
-                      <div id="barLine_long" style="width:100%;height:100%;"></div>
+                      <div id="barLine_long"  class="chart-box"></div>
                     </div>
                     </div>
                 </div>
@@ -302,50 +410,76 @@ function toggleById(id, show) {
             <!-- ===== 右列 ===== -->
             <div class="center-right fr">
                 <div class="right-top rightTop border">
-                    <div class="title">分区出行效率排行</div>
+                    <div class="title">主干道路口高峰小时通行量排行</div>
 
-                    <!-- 短期（2022）排行：保留原结构与滚动 -->
-                    <div id="rank_short_wrap" class="echart wenzi visible">
+                    <!-- 短期排行:  保留原结构与滚动 -->
+                    <div id="scroll_short" class="rank_wrap">
                         <div class="gun">
                             <span>排名</span>
                             <span>名称</span>
-                            <span>出行指数</span>
+                            <span>PHF (pcu/h)</span>
                         </div>
                         <div id="FontScroll" class="myscroll">
                             <ul>
-                                <li><div class="fontInner clearfix"><span><b>1</b></span><span>容城</span><span>2.42</span></div></li>
-                                <li><div class="fontInner clearfix"><span><b>2</b></span><span>容东</span><span>2.38</span></div></li>
-                                <li><div class="fontInner clearfix"><span><b>3</b></span><span>容西</span><span>2.30</span></div></li>
-                                <li><div class="fontInner clearfix"><span><b>4</b></span><span>安新</span><span>2.22</span></div></li>
-                                <li><div class="fontInner clearfix"><span><b>5</b></span><span>雄县</span><span>2.20</span></div></li>
-                                <li><div class="fontInner clearfix"><span><b>6</b></span><span>昝岗</span><span>2.19</span></div></li>
-                                <li><div class="fontInner clearfix"><span><b>7</b></span><span>寨里</span><span>2.18</span></div></li>
-                                <li><div class="fontInner clearfix"><span><b>8</b></span><span>起步区</span><span>2.17</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>1</b></span><span>容德路-乐安街</span><span>2200 </span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>2</b></span><span>甘棠路-双文街</span><span>1800</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>3</b></span><span>兴贤路-金源东路</span><span>1700</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>4</b></span><span>容德东路-八于街</span><span>1600</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>5</b></span><span>金湖东路-双文街</span><span>1500</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>6</b></span><span>崇文北路-双文街</span><span>1400</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>7</b></span><span>甘棠路-双文街</span><span>1300</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>8</b></span><span>富家路-金湖北街</span><span>1200</span></div></li>
                             </ul>
                         </div>
                     </div>
 
                     <!-- 中期排行占位 -->
-                    <div id="rank_mid_wrap" class="echart wenzi hidden">
+                    <div id="scroll_mid" class="rank_wrap hidden">
                         <div class="gun">
-                            <span>排名</span><span>名称</span><span>出行指数</span>
+                            <span>排名</span>
+                            <span>名称</span>
+                            <span>PHF (pcu/h)</span>
                         </div>
-                        <div class="placeholder-card" style="height: 220px;">中期分区排行占位</div>
+                        <div id="list_mid" class="myscroll">
+                            <ul>
+                                <li><div class="fontInner clearfix"><span><b>1</b></span><span>容德路-乐安街</span><span>22 </span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>2</b></span><span>甘棠路-双文街</span><span>18</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>3</b></span><span>兴贤路-金源东路</span><span>17</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>4</b></span><span>容德东路-八于街</span><span>16</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>5</b></span><span>金湖东路-双文街</span><span>150</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>6</b></span><span>崇文北路-双文街</span><span>14</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>7</b></span><span>甘棠路-双文街</span><span>13</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>8</b></span><span>富家路-金湖北街</span><span>10</span></div></li>
+                            </ul>
+                        </div>
                     </div>
 
                     <!-- 长期排行占位 -->
-                    <div id="rank_long_wrap" class="echart wenzi hidden">
+                    <div id="scroll_long" class="rank_wrap hidden">
                         <div class="gun">
-                            <span>排名</span><span>名称</span><span>出行指数</span>
+                            <span>排名</span>
+                            <span>名称</span>
+                            <span>PHF (pcu/h)</span>
                         </div>
-                        <div class="placeholder-card" style="height: 220px;">长期分区排行占位</div>
+                        <div id="list_long" class="myscroll">
+                            <ul>
+                                <li><div class="fontInner clearfix"><span><b>1</b></span><span>容德路-乐安街</span><span>2 </span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>2</b></span><span>甘棠路-双文街</span><span>1</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>3</b></span><span>兴贤路-金源东路</span><span>1</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>4</b></span><span>容德东路-八于街</span><span>1</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>5</b></span><span>金湖东路-双文街</span><span>1</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>6</b></span><span>崇文北路-双文街</span><span>1</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>7</b></span><span>甘棠路-双文街</span><span>1</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>8</b></span><span>富家路-金湖北街</span><span>1</span></div></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
 
                 <div class="right-cen border">
                     <div class="title">路口排队情况</div>
                     <div class="right-cen-cent" style="height: 250px;">
-                        <!-- 右中：短期用原三维图 iframe；中/长期为占位容器（可替换为不同 src） -->
+                        <!-- 右中:  短期用原三维图 iframe；中/长期为占位容器（可替换为不同 src） -->
                         <div id="rightmid_short" class="visible" style="width:100%; height:98%;">
                             <iframe src="html/day_delay.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
                         </div>
@@ -361,7 +495,7 @@ function toggleById(id, show) {
                 <div class="right-bottom rightTop border">
                     <div class="title">公交车运行统计</div>
                     <div class="chat" style="height: 220px;">
-                        <!-- 右下：短期沿用原 iframe；中/长期为占位容器（可替换为不同 src） -->
+                        <!-- 右下:  短期沿用原 iframe；中/长期为占位容器（可替换为不同 src） -->
                         <div id="rightbot_short" class="visible" style="width:100%; height:100%;">
                             <iframe src="html/bus_short.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
                         </div>
@@ -378,13 +512,12 @@ function toggleById(id, show) {
     </div><!-- /main -->
 
     <!-- 原有脚本依赖 -->
-    <script src="js/jquery.min.js"></script>
     <script src="https://www.jq22.com/jquery/echarts-4.2.1.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts-gl/dist/echarts-gl.min.js"></script>
     <script src="js/wodry.min.js"></script>
     <script src="js/fontscroll.js"></script>
-    <script src="js/echarts.fillfix.js"></script>
+    <script src="js/echarts.js"></script>
 
     <script>
         // 顶部时间
@@ -411,7 +544,5 @@ function toggleById(id, show) {
             applyPeriod('short');
         });
     </script>
-
-
 </body>
 </html>
