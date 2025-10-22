@@ -1,0 +1,28 @@
+/* —— 图表容器：稳定宽高比 —— */
+#panel_bar_short, #panel_bar_mid, #panel_bar_long,
+#panel_ring_short, #panel_ring_mid, #panel_ring_long {
+  aspect-ratio: 16 / 5;   /* 需要更高就改成 16/7 或 16/9 */
+  width: 100%;
+  /* 如果你的老样式里给了固定height，这里不再写height，交给 aspect-ratio 计算 */
+}
+
+/* 图表实际画布占满容器 */
+#panel_bar_short > div, #panel_bar_mid > div, #panel_bar_long > div,
+#panel_ring_short > div, #panel_ring_mid > div, #panel_ring_long > div {
+  width: 100%;
+  height: 100%;
+}
+
+/* 地图 iframe 占满父容器；给地图区域一个最低高度避免太扁 */
+.cen-top.rightTop.border { min-height: 320px; }
+#ifr { width: 100%; height: 100%; display: block; border: 0; }
+
+/* 显隐工具类（可把你 HTML 里 <style> 的这两条挪过来统一管理） */
+.hidden  { display: none !important; }
+.visible { display: block !important; }
+
+/* 盒模型统一，减少不同屏下的尺寸误差 */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* （可选）全站字体随屏宽自适应并设上下限 */
+html { font-size: clamp(12px, 1.15vw, 16px); }
