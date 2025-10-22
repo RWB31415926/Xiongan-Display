@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta charset="UTF-8" />
+    <title>雄安</title>
+    <link rel="stylesheet" href="css/wodry.css">
+    <link rel="stylesheet" href="css/index.css">
+    <link rel="stylesheet" href="css/public.css">
+    <link rel="stylesheet" href="css/chart.css">
+
+    <script src="https://www.jq22.com/jquery/jquery-1.10.2.js"></script>
+
+ <script>
+// ===== 地图文件映射（按 指标×周期） =====
+var MAP_SRC = {
+  flow: {  // 流量
+    short: 'html/flow_short.html',
+    mid:   'html/flow_mid.html',
+    long:  'html/flow_long.html'
+  },
+  load: {  // 负荷
+    short: 'html/vc_short.html',
+    mid:   'html/vc_mid.html',
+    long:  'html/vc_long.html'
+  },
+   od: {   // od
+    short: 'html/od_short.html',
+    mid:   'html/od_mid.html',
+    long:  'html/od_long.html'
+  }
+};
+
+// 当前状态（默认:  短期 + 流量）
+window._currentPeriod = 'short';
+window._currentMetric = 'flow';
+
+// 读当前 select（兜底用）
+function currentPeriod(){ return (document.getElementById('periodSelectInPanel')||{}).value || window._currentPeriod || 'short'; }
+function currentMetric(){ return (document.getElementById('metricSelect')||{}).value || window._currentMetric || 'flow'; }
+
+// 只负责切换“指标”（两个下拉里的右边那个），然后刷新地图 iframe
+function applyMetric(key){
+  window._currentMetric = key;                      // 记住当前指标
+  var sel = document.getElementById('metricSelect');
+  if (sel) sel.value = key;                         // 同步 UI
+  updateMapSrc();                                   // 切地图
+  setTimeout(forceResizeMap, 60);                   // 触发子页 resize，防止只显示一角
+}
+
+// 统一更新地图 iframe 的 src（由 指标×周期 决定）
+function updateMapSrc(){
+  var p = currentPeriod();
+  var m = currentMetric();
+  var url = (MAP_SRC[m] && MAP_SRC[m][p]) ? MAP_SRC[m][p] : '';
+
+  var ifr = document.getElementById('ifr');
+  if (!ifr) return;
+  if (url) { ifr.src = url; ifr.style.display = 'block'; }
+  else     { ifr.removeAttribute('src'); ifr.style.display = 'none'; }
+}
+
+// 强制让内嵌地图库（kepler/Mapbox/Leaflet）重算尺寸
+function forceResizeMap(){
+  var ifr = document.getElementById('ifr');
+  try { if (ifr && ifr.contentWindow) ifr.contentWindow.dispatchEvent(new Event('resize')); } catch(e){}
+}
+
+$(document).ready(function () {
+  var whei = $(window).width();
+  $("html").css({ fontSize: whei / 22 });
+  $(window).resize(function () {
+    var whei = $(window).width();
+    $("html").css({ fontSize: whei / 22 });
+  });
+});
+</script>
+
+    <style>
+    /* 显隐:  用 !important 压过内联 display */
+    .hidden  { display: none !important; }
+    .visible { display: block !important; }
+
+    </style>
+    <div class="header-topright ">
+  <a id="openDashboard" class="header-launch-btn"
+     href="http://10.201.170.192:8080/"
+     target="_blank"
+     rel="noopener noreferrer">
+    打开控制台
+  </a>
+</div>
+    <script>
+  document.getElementById("openDashboard").addEventListener("click", function (e) {
+
+    // 刷新当前网页
+    location.reload();
+  });
+</script>
+
+</head>
+
+<body>
+ <script>
+    // 映射:  三个周期 → 各自日期
+var PERIOD_DATE = {
+  short: '2025年09月16日',
+  mid:   '2027年08月01日',
+  long:  '2030年12月08日'
+};
+
+function ensureScrollRunning($wrap){
+  if (!$wrap.length) return;
+  // 第一次进入：正确的行高初始化
+  if (!$wrap.data('scroll-inited')) {
+    var step = Math.round($wrap.find('li').first().outerHeight(true)) || 42;
+    $wrap.myScroll({ speed: 30, rowHeight: step });
+    $wrap.data('scroll-inited', true);
+  } else {
+    // 已初始化过：显示出来后强制重启
+    $wrap.triggerHandler('mouseleave');
+  }
+}
+
+function updatePeriodDate(p){
+  var el = document.getElementById('periodDate');
+  if (el) el.textContent = PERIOD_DATE[p] || '';
+}
+
+function initMetricsScroll(period){
+  var $wrap = $('#diva_' + period + ' .myscroll');
+  if ($wrap.length && !$wrap.data('scroll-inited')) {
+    // 取第一行真实像素高度（含上下 margin 更稳）
+    var step = Math.round($wrap.find('li').first().outerHeight(true)) || 42;
+    $wrap.myScroll({ speed: 100, rowHeight: step });
+    $wrap.data('scroll-inited', true);
+  }
+}
+
+function applyPeriod(key) {
+  window._currentPeriod = key;
+  updatePeriodDate(key);  // ← 新增:  切换就更新日期
+
+  var $wrap = $('#scroll_' + key + ' .myscroll');
+
+  if ($wrap.length && !$wrap.data('scroll-inited')) {
+    $wrap.myScroll({ speed: 100 });
+    $wrap.data('scroll-inited', true);
+  }
+  initMetricsScroll(key);
+
+  // 记住当前周期
+  window._currentPeriod = key;
+
+  // 左列 - 基本信息
+  toggleById('div_short', key==='short');
+  toggleById('div_mid',   key==='mid');
+  toggleById('div_long',  key==='long');
+
+  // 左列 - 交通运行状况
+  toggleById('diva_short', key==='short');
+  toggleById('diva_mid',   key==='mid');
+  toggleById('diva_long',  key==='long');
+
+  // 左下 - 环形图容器
+  toggleById('panel_ring_short', key==='short');
+  toggleById('panel_ring_mid',   key==='mid');
+  toggleById('panel_ring_long',  key==='long');
+
+  // 中列 - 地图 iframe（由 “指标×周期” 共同决定）
+  updateMapSrc();
+
+  // 中下 - 柱线图容器
+  toggleById('panel_bar_short', key==='short');
+  toggleById('panel_bar_mid',   key==='mid');
+  toggleById('panel_bar_long',  key==='long');
+
+  // 右列 - 排行/中部/底部
+  toggleById('scroll_short', key==='short');
+  toggleById('scroll_mid',   key==='mid');
+  toggleById('scroll_long',  key==='long');
+
+  toggleById('rightmid_short',  key==='short');
+  toggleById('rightmid_mid',    key==='mid');
+  toggleById('rightmid_long',   key==='long');
+
+  toggleById('rightbot_short',  key==='short');
+  toggleById('rightbot_mid',    key==='mid');
+  toggleById('rightbot_long',   key==='long');
+
+  // —— 图表只在首次进入对应周期时初始化（避免重复 init/定时器）——
+  window._chart_once = window._chart_once || {};
+  function once(name, fn){ if(window._chart_once[name]) return; window._chart_once[name] = true; try{ fn(); }catch(e){ console.error(e); } }
+
+  if (key === 'short') {
+    once('ring_short',    ring_short);
+    once('barLine_short', barLine_short);
+  } else if (key === 'mid') {
+    once('ring_mid',      ring_mid);
+    once('barLine_mid',   barLine_mid);
+  } else if (key === 'long') {
+    once('ring_long',     ring_long);
+    once('barLine_long',  barLine_long);
+  }
+
+    // 切换周期后，过一会儿重启滚动（确保显示后再启动）
+    setTimeout(function(){
+    ensureScrollRunning($('#diva_'   + key + ' .myscroll')); // 左侧“交通运行状况”
+    ensureScrollRunning($('#scroll_' + key + ' .myscroll')); // 右侧“排行”
+  }, 0);
+}
+
+// 首次渲染
+document.addEventListener('DOMContentLoaded', function(){
+  var sel = document.getElementById('periodSelectInPanel');
+  var initPeriod = (sel && sel.value) || 'short';
+  updatePeriodDate(initPeriod);
+});
+
+function toggleById(id, show) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (show) { el.classList.remove('hidden'); el.classList.add('visible'); }
+  else      { el.classList.remove('visible'); el.classList.add('hidden'); }
+}
+</script>
+
+    <div class="main">
+        <div class="header">
+            <div class="header-left fl" id="time"></div>
+
+            <div class="header-center fl">
+                <div class="header-title">雄安新区交通系统仿真推演平台</div>
+                <div class="header-img"></div>
+            </div>
+
+            <div class="header-right fl"></div>
+            <div class="header-bottom fl"></div>
+        </div>
+
+        <div class="center">
+            <!-- ===== 左列 ===== -->
+            <div class="center-left fl">
+                <div class="left-top rightTop border">
+                    <div class="title">基本信息</div>
+
+                    <!-- 短期（2022） -->
+                    <div class="top-list" id="div_short">
+                        <ul>
+                        <li class="metric"><span class="name">道路网络的路段总数</span><span class="value">652</span><span class="unit">条</span></li>
+                        <li class="metric"><span class="name">道路网络的交叉口总数</span><span class="value">161</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name">交通网络所有路段总里程</span><span class="value">24.29</span><span class="unit">km</span></li>
+                        <li class="metric"><span class="name">交通网络路段的平均长度</span><span class="value">295.47</span><span class="unit">m</span></li>
+                        <li class="metric"><span class="name">容东片区公交站点数量</span><span class="value">47</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name">容东片区公交线路数量</span><span class="value">5</span><span class="unit">条</span></li>
+                        </ul>
+                    </div>
+
+                    <!-- 中期 -->
+                    <div class="top-list" id="div_mid" style="display:none;">
+                    <ul>
+                        <li class="metric"><span class="name">道路网络的路段总数</span><span class="value">652</span><span class="unit">条</span></li>
+                        <li class="metric"><span class="name">道路网络的交叉口总数</span><span class="value">161</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name">交通网络所有路段总里程</span><span class="value">24.29</span><span class="unit">km</span></li>
+                        <li class="metric"><span class="name">交通网络路段的平均长度</span><span class="value">295.47</span><span class="unit">m</span></li>
+                        <li class="metric"><span class="name">容东片区公交站点数量</span><span class="value">47</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name">容东片区公交线路数量</span><span class="value">5</span><span class="unit">条</span></li>
+                    </ul>
+                    </div>
+
+                    <!-- 长期 -->
+                    <div class="top-list" id="div_long" style="display:none;">
+                        <ul>
+                        <li class="metric"><span class="name">道路网络的路段总数</span><span class="value">652</span><span class="unit">条</span></li>
+                        <li class="metric"><span class="name">道路网络的交叉口总数</span><span class="value">161</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name">交通网络所有路段总里程</span><span class="value">24.29</span><span class="unit">km</span></li>
+                        <li class="metric"><span class="name">交通网络路段的平均长度</span><span class="value">295.47</span><span class="unit">m</span></li>
+                        <li class="metric"><span class="name">容东片区公交站点数量</span><span class="value">47</span><span class="unit">个</span></li>
+                        <li class="metric"><span class="name">容东片区公交线路数量</span><span class="value">5</span><span class="unit">条</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 短期 -->
+                <div class="left-cen rightTop border" id="diva_short">
+                <div class="title">交通运行状况（短期）</div>
+                <div class="myscroll" id="metrics_short">
+                    <ul class="left-cen metrics-list">
+                <li><div class="fontInner"><span class="label">路段平均饱和度</span><span class="value">
+                    <span class="num">67.80 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">道路网络平均速度</span><span class="value">
+                    <span class="num">35.60 </span><span class="unit">千米/小时</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">平均排队长度</span><span class="value">
+                    <span class="num">3.40 </span><span class="unit">pcu</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">公交平均准点率</span><span class="value">
+                    <span class="num">88.20 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">行程时间比</span><span class="value">
+                    <span class="num">1.43 </span><span class="unit"> </span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">路口平均饱和度</span><span class="value">
+                    <span class="num">82.50 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">拥堵里程占比</span><span class="value">
+                    <span class="num">22.00 </span><span class="unit">%</span></span></div></li>
+
+                    </ul>
+                </div>
+                </div>
+
+                <!-- 中期 -->
+                <div class="left-cen rightTop border" id="diva_mid">
+                <div class="title">交通运行状况（中期）</div>
+                <div class="myscroll" id="metrics_mid">
+                    <ul class="left-cen metrics-list">
+                <li><div class="fontInner"><span class="label">路段平均饱和度</span><span class="value">
+                    <span class="num">67.80 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">道路网络平均速度</span><span class="value">
+                    <span class="num">34.60 </span><span class="unit">千米/小时</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">平均排队长度</span><span class="value">
+                    <span class="num">3.40 </span><span class="unit">pcu</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">公交平均准点率</span><span class="value">
+                    <span class="num">88.20 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">行程时间比</span><span class="value">
+                    <span class="num">1.43 </span><span class="unit"> </span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">路口平均饱和度</span><span class="value">
+                    <span class="num">82.50 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">拥堵里程占比</span><span class="value">
+                    <span class="num">22.00 </span><span class="unit">%</span></span></div></li>
+                    </ul>
+                </div>
+                </div>
+
+                <!-- 长期 -->
+                <div class="left-cen rightTop border" id="diva_long">
+                <div class="title">交通运行状况（长期）</div>
+                <div class="myscroll" id="metrics_long">
+                    <ul class="left-cen metrics-list">
+                <li><div class="fontInner"><span class="label">路段平均饱和度</span><span class="value">
+                    <span class="num">67.80 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">道路网络平均速度</span><span class="value">
+                    <span class="num">36.60 </span><span class="unit">千米/小时</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">平均排队长度</span><span class="value">
+                    <span class="num">3.40 </span><span class="unit">pcu</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">公交平均准点率</span><span class="value">
+                    <span class="num">88.20 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">行程时间比</span><span class="value">
+                    <span class="num">1.43 </span><span class="unit"> </span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">路口平均饱和度</span><span class="value">
+                    <span class="num">82.50 </span><span class="unit">%</span></span></div></li>
+
+                <li><div class="fontInner"><span class="label">拥堵里程占比</span><span class="value">
+                    <span class="num">22.00 </span><span class="unit">%</span></span></div></li>
+                    </ul>
+                </div>
+                </div>
+
+                <div class="left-bottom rightTop border">
+                    <div class="title">路段高峰期车流速度占比</div>
+                    <div class="bottom-b" style="height: 28vh;">
+                        <!-- 短期默认图表容器 -->
+                        <div id="panel_ring_short" class="allnav visible" style="width:100%; height:100%;">
+                        <div id="ring_short" class="chart-box"></div>
+                        </div>
+                        <!-- 中期 -->
+                        <div id="panel_ring_mid" class="allnav hidden" style="width:100%; height:100%;">
+                            <div id="ring_mid" class="chart-box"></div>
+                        </div>
+                        <!-- 长期 -->
+                        <div id="panel_ring_long" class="allnav hidden" style="width:100%; height:100%;">
+                            <div id="ring_long" class="chart-box"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 中列 ===== -->
+            <div class="center-cen fl">
+            <div class="cen-top rightTop border">
+              <select id="periodSelectInPanel" style="background-color: rgba(0,72,115,0.28)" onchange="applyPeriod(this.value)">
+                <option value="short" selected>短期</option>
+                <option value="mid">中期</option>
+                <option value="long">长期</option>
+              </select>
+              <select id="metricSelect" style="background-color: rgba(0,72,115,0.28)" onchange="applyMetric(this.value)">
+                <option value="flow" selected>流量</option>
+                <option value="load">负荷</option>
+                  <option value="od">OD</option>
+              </select>
+
+              <div class="period-date" id="periodDate">2022年09月30日</div>
+              
+                <!--iframe 随周期切换 -->
+                <iframe id="ifr" src="html/flow_short.html"style="height: 100%" width="100%" ></iframe>
+            </div>
+
+                    <div class="cen-bottom rightTop border">
+                    <div class="title">一周分时段车流与速度</div>
+                    <div class="bottom-b" style="height: 25vh;">
+
+                    <!-- 短期默认图表容器（与原ID一致） -->
+                    <!-- 短期 -->
+                    <div id="panel_bar_short" style="width:100%;height:95%;">
+                      <div id="barLine_short"  class="chart-box"></div>
+                    </div>
+                    <!-- 中期 -->
+                    <div id="panel_bar_mid" style="display:none;width:100%;height:100%;">
+                      <div id="barLine_mid"  class="chart-box"></div>
+                    </div>
+                    <!-- 长期 -->
+                    <div id="panel_bar_long" style="display:none;width:100%;height:100%;">
+                      <div id="barLine_long"  class="chart-box"></div>
+                    </div>
+                    </div>
+                </div>
+                </div>
+
+            <!-- ===== 右列 ===== -->
+            <div class="center-right fr">
+                <div class="right-top rightTop border">
+                    <div class="title">乐安街道路口高峰小时通行量排行</div>
+
+                    <!-- 短期排行:  保留原结构与滚动 -->
+                    <div id="scroll_short" class="rank_wrap">
+                        <div class="gun">
+                            <span>排名</span>
+                            <span>名称</span>
+                            <span>PHF (pcu/h)</span>
+                        </div>
+                        <div id="FontScroll" class="myscroll">
+                            <ul>
+                                <li><div class="fontInner clearfix"><span><b>1</b></span><span>渥城北路口</span><span>1289</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>2</b></span><span>兴贤路口</span><span>1279</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>3</b></span><span>容德东路口</span><span>1208</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>4</b></span><span>兴贤东路口</span><span>1005</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>5</b></span><span>容德路口</span><span>875</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>6</b></span><span>金源东路口</span><span>862</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>7</b></span><span>容德西路口</span><span>793</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>8</b></span><span>金湖东路口</span><span>566</span></div></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 中期排行占位 -->
+                    <div id="scroll_mid" class="rank_wrap hidden">
+                        <div class="gun">
+                            <span>排名</span>
+                            <span>名称</span>
+                            <span>PHF (pcu/h)</span>
+                        </div>
+                        <div id="list_mid" class="myscroll">
+                            <ul>
+                                <li><div class="fontInner clearfix"><span><b>1</b></span><span>渥城北路口</span><span>1289</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>2</b></span><span>兴贤路口</span><span>1279</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>3</b></span><span>容德东路口</span><span>1208</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>4</b></span><span>兴贤东路口</span><span>1005</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>5</b></span><span>容德路口</span><span>875</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>6</b></span><span>金源东路口</span><span>862</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>7</b></span><span>容德西路口</span><span>793</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>8</b></span><span>金湖东路口</span><span>566</span></div></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 长期排行占位 -->
+                    <div id="scroll_long" class="rank_wrap hidden">
+                        <div class="gun">
+                            <span>排名</span>
+                            <span>名称</span>
+                            <span>PHF (pcu/h)</span>
+                        </div>
+                        <div id="list_long" class="myscroll">
+                            <ul>
+                                <li><div class="fontInner clearfix"><span><b>1</b></span><span>渥城北路口</span><span>1289</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>2</b></span><span>兴贤路口</span><span>1279</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>3</b></span><span>容德东路口</span><span>1208</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>4</b></span><span>兴贤东路口</span><span>1005</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>5</b></span><span>容德路口</span><span>875</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>6</b></span><span>金源东路口</span><span>862</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>7</b></span><span>容德西路口</span><span>793</span></div></li>
+                                <li><div class="fontInner clearfix"><span><b>8</b></span><span>金湖东路口</span><span>566</span></div></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-cen border">
+                    <div class="title">路口排队情况</div>
+                    <div class="right-cen-cent">
+                        <!-- 右中:  短期用原三维图 iframe；中/长期为占位容器（可替换为不同 src） -->
+                        <div id="rightmid_short" class="visible" style="width:100%; height:98%;">
+                            <iframe src="html/day_delay.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        </div>
+                        <div id="rightmid_mid" class="hidden" style="width:100%; height:100%;">
+                            <iframe src="html/week_delay.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        </div>
+                        <div id="rightmid_long" class="hidden" style="width:100%; height:100%;">
+                            <iframe src="html/week_delay.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-bottom rightTop border">
+                    <div class="title">公交车运行统计</div>
+                    <div class="chat">
+                        <!-- 右下:  短期沿用原 iframe；中/长期为占位容器（可替换为不同 src） -->
+                        <div id="rightbot_short" class="visible" style="width:100%; height:100%;">
+                            <iframe src="html/bus_short.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        </div>
+                        <div id="rightbot_mid" class="hidden" style="width:100%; height:100%;">
+                            <iframe src="html/bus_mid.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        </div>
+                        <div id="rightbot_long" class="hidden" style="width:100%; height:100%;">
+                            <iframe src="html/bus_long.html" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /右列 -->
+        </div><!-- /center -->
+    </div><!-- /main -->
+
+    <!-- 原有脚本依赖 -->
+    <script src="https://www.jq22.com/jquery/echarts-4.2.1.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/echarts-gl/dist/echarts-gl.min.js"></script>
+    <script src="js/wodry.min.js"></script>
+    <script src="js/fontscroll.js"></script>
+    <<script src="js/echarts.js"></script>
+    <!--script src="js/echarts_alldistorb.js"></!--script-->
+
+    <script>
+        // 顶部时间
+        function getTime(){
+            var myDate = new Date();
+            var myYear = myDate.getFullYear();
+            var myMonth = myDate.getMonth()+1;
+            var myToday = myDate.getDate();
+            var myDay = myDate.getDay();
+            var myHour = myDate.getHours();
+            var myMinute = myDate.getMinutes();
+            var mySecond = myDate.getSeconds();
+            var week = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+            var nowTime = myYear+'-'+fillZero(myMonth)+'-'+fillZero(myToday)+'&nbsp;&nbsp;'
+                        +fillZero(myHour)+':'+fillZero(myMinute)+':'+fillZero(mySecond)
+                        +'&nbsp;&nbsp;'+week[myDay]+'&nbsp;&nbsp;';
+            $('#time').html(nowTime);
+        }
+        function fillZero(str){ return (str<10)?('0'+str):str; }
+        setInterval(getTime,1000);
+
+        // 页面加载完成后，将周期初始化为“短期”
+        window.addEventListener('DOMContentLoaded', function(){
+            applyPeriod('short');
+        });
+    </script>
+</body>
+</html>
